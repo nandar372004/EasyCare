@@ -1,0 +1,5 @@
+[functions.patient-register]
+verify_jwt = false
+
+[functions.ai-health-guardian]
+verify_jwt = true

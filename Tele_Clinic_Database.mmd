@@ -1,0 +1,98 @@
+erDiagram
+    AUTH_USERS ||--|| PROFILES : "managed identity"
+    PROFILES ||--o| PATIENTS : "patient identity"
+    PROFILES ||--o| PROVIDERS : "provider identity"
+    PROVIDERS ||--o{ AVAILABILITY_SLOTS : offers
+    PATIENTS ||--o{ APPOINTMENTS : books
+    PROVIDERS ||--o{ APPOINTMENTS : attends
+    AVAILABILITY_SLOTS ||--o{ APPOINTMENTS : allocates
+    APPOINTMENTS ||--o{ APPOINTMENT_EVENTS : records
+    PROFILES ||--o{ APPOINTMENT_EVENTS : acts
+
+    AUTH_USERS {
+        uuid id PK "Supabase-managed external source"
+    }
+
+    PROFILES {
+        uuid id PK_FK "auth.users.id"
+        app_role role
+        text display_name
+        text phone UK
+        text preferred_language
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PATIENTS {
+        uuid id PK
+        uuid profile_id FK_UK
+        text member_code UK
+        date date_of_birth
+        text gender
+        text address_city
+        jsonb emergency_contact
+        jsonb medical_profile
+        timestamptz terms_accepted_at
+        timestamptz privacy_consent_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    PROVIDERS {
+        uuid id PK
+        uuid profile_id FK_UK
+        text specialty
+        text qualification
+        text license_number UK
+        provider_verification_status verification_status
+        integer consultation_fee_mmk
+        text_array languages
+        text timezone "Asia/Yangon"
+        integer default_slot_minutes
+        boolean is_public
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    AVAILABILITY_SLOTS {
+        uuid id PK
+        uuid provider_id FK
+        date slot_date
+        timestamptz starts_at
+        timestamptz ends_at
+        consultation_type consultation_type
+        availability_status status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    APPOINTMENTS {
+        uuid id PK
+        text booking_code UK
+        uuid idempotency_key
+        uuid patient_id FK
+        uuid provider_id FK
+        uuid availability_slot_id FK
+        consultation_type consultation_type
+        appointment_status status
+        text symptoms "optional"
+        text simulated_payment_method
+        integer fee_mmk
+        timestamptz cancelled_at
+        text cancellation_reason
+        uuid cancelled_by FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    APPOINTMENT_EVENTS {
+        uuid id PK
+        uuid appointment_id FK
+        uuid actor_id FK
+        text event_type
+        appointment_status from_status
+        appointment_status to_status
+        jsonb metadata "minimal"
+        timestamptz created_at
+    }
