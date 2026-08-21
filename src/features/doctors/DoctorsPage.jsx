@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarClock, ChevronLeft, House, MapPin, MessageSquare, Phone, Search, Star, Stethoscope, Video } from 'lucide-react'
+import { CalendarClock, ChevronLeft, House, MapPin, Phone, Search, Star, Stethoscope, Video } from 'lucide-react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { presentationRepository } from '../../services/repositories/index.js'
 import { formatMmk, formatPresentationDateTime } from '../../lib/presentationFormatting.js'
-import { BookingConflictError, createIdempotencyKey, createBookingCode, PAYMENT_NOTICE, validateBooking } from '../../services/bookingService.js'
+import { BookingConflictError, createIdempotencyKey, createBookingCode, isSlotCompatible, PAYMENT_NOTICE, validateBooking } from '../../services/bookingService.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 
 const TYPE_LABELS = { video: 'Video', voice: 'Voice', chat: 'Chat', home_visit: 'Home visit' }
-const TYPE_ICONS = { video: Video, voice: Phone, chat: MessageSquare, home_visit: House }
+const TYPE_ICONS = { video: Video, voice: Phone, home_visit: House }
 
 export function DoctorsPage() {
   const { doctorId } = useParams()
@@ -28,9 +29,9 @@ export function DoctorsPage() {
         let [doctorRows, slotRows] = await Promise.all([presentationRepository.listDoctors(), presentationRepository.listAvailabilitySlots()])
         if (!active) return
         setDoctors(doctorRows); setSlots(slotRows)
-        // Hospital records are optional in the current Supabase schema. Doctor
-        // rows carry hospital_name when connected, so this must not block discovery.
-        if (doctorRows.some((doctor) => !doctor.isSynthetic)) {
+        // Fixture doctors use the fixture hospital collection. Real doctors
+        // carry a safe directory label mapped from providers.service_area.
+        if (doctorRows.some((doctor) => doctor.isSynthetic)) {
           try { const hospitalRows = await presentationRepository.listHospitals(); if (active) setHospitals(hospitalRows) } catch { if (active) setHospitals([]) }
         }
       } catch {
@@ -96,7 +97,7 @@ function DoctorDetails({ doctor, photoIndex, hospital, slots: initialSlots, star
 }
 
 function BookingForm({ doctor, slots, onConflictRefresh, onCancel, onBooked }) {
-  const [patient, setPatient] = useState(null)
+  const { patient, status: authStatus } = useAuth()
   const [type, setType] = useState(doctor.consultationTypes[0])
   const [slotId, setSlotId] = useState('')
   const [symptoms, setSymptoms] = useState('')
@@ -105,16 +106,17 @@ function BookingForm({ doctor, slots, onConflictRefresh, onCancel, onBooked }) {
   const [confirmation, setConfirmation] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const idempotencyKey = useRef(createIdempotencyKey())
-  useEffect(() => { presentationRepository.getCurrentPatient().then(setPatient) }, [])
-  const typeSlots = slots.filter((slot) => slot.consultationType === type)
+  const patientLoading = authStatus === 'loading'
+  const patientUnavailable = !patientLoading && !patient?.id
+  const typeSlots = slots.filter((slot) => isSlotCompatible(slot, type))
   const chosenSlot = slots.find((slot) => slot.id === slotId)
-  const changeType = (nextType) => { setType(nextType); if (!slots.some((slot) => slot.id === slotId && slot.consultationType === nextType)) setSlotId(''); setError('') }
+  const changeType = (nextType) => { setType(nextType); if (!isSlotCompatible(chosenSlot, nextType)) setSlotId(''); setError('') }
   const submit = async (event) => {
     event.preventDefault(); if (submitting) return
     setError(''); setSubmitting(true)
     try {
       validateBooking({ doctor, patientId: patient?.id, slot: chosenSlot, consultationType: type, paymentMethod, symptoms })
-      const appointment = await presentationRepository.createAppointment({ bookingCode: createBookingCode(), idempotencyKey: idempotencyKey.current, patientId: patient.id, doctorId: doctor.id, slotId, consultationType: type, symptoms, paymentMethod, feeMmk: doctor.consultationFeeMmk })
+      const appointment = await presentationRepository.createAppointment({ bookingCode: createBookingCode(), idempotencyKey: idempotencyKey.current, patientId: patient.id, doctorId: doctor.id, slotId, startsAt: chosenSlot.startsAt, endsAt: chosenSlot.endsAt, consultationType: type, symptoms, paymentMethod, feeMmk: doctor.consultationFeeMmk })
       setConfirmation(appointment)
     } catch (cause) {
       if (cause instanceof BookingConflictError || cause?.code === 'SLOT_CONFLICT') { await onConflictRefresh(); setSlotId('') }
@@ -126,14 +128,15 @@ function BookingForm({ doctor, slots, onConflictRefresh, onCancel, onBooked }) {
     <form className="booking-form" onSubmit={submit}>
       <fieldset><legend>1. Consultation type</legend><div className="type-options">{doctor.consultationTypes.map((item) => { const Icon = TYPE_ICONS[item]; return <button key={item} className={type === item ? 'active' : ''} type="button" onClick={() => changeType(item)}><Icon aria-hidden="true" /><strong>{TYPE_LABELS[item]}</strong><small>{item === 'home_visit' ? 'Doctor visits your registered address' : 'Remote consultation'}</small></button> })}</div></fieldset>
       {type === 'home_visit' && <div className="home-visit-note"><House aria-hidden="true" /><span>Home visits use a longer visit window and the registered patient address. Waiting-room links and remote device checks do not apply.</span></div>}
-      <div className="booking-grid"><label>Patient<select className="form-control" value={patient?.id ?? ''} disabled><option value={patient?.id ?? ''}>{patient?.displayName ?? patient?.member_code ?? 'Loading patient…'}</option></select></label><label>Available date and time<select aria-label="Available date and time" className="form-control" value={slotId} onChange={(event) => { setSlotId(event.target.value); setError('') }}><option value="">Choose an available time</option>{typeSlots.map((slot) => <option value={slot.id} key={slot.id}>{formatPresentationDateTime(slot.startsAt)}</option>)}</select></label></div>
+      <div className="booking-grid"><label>Patient<div className="form-control" role="status" aria-live="polite">{patientLoading ? 'Loading patient…' : patient?.full_name ?? 'Unable to load your patient account.'}</div></label><label>Available date and time<select aria-label="Available date and time" className="form-control" value={slotId} onChange={(event) => { setSlotId(event.target.value); setError('') }}><option value="">Choose an available time</option>{typeSlots.map((slot) => <option value={slot.id} key={slot.id}>{formatPresentationDateTime(slot.startsAt)}</option>)}</select></label></div>
+      {patientUnavailable && <div className="error-message" role="alert">Unable to load your patient account.</div>}
       {!typeSlots.length && <p className="slot-warning">No future {TYPE_LABELS[type].toLowerCase()} times are currently available. Choose another consultation type.</p>}
       <label>Reason for Visit/Symptoms <span className="muted">(optional)</span><textarea className="form-control" rows="3" maxLength="2000" value={symptoms} onChange={(event) => setSymptoms(event.target.value)} placeholder="Briefly describe what you would like to discuss" /></label>
       <label>Simulated payment method<select className="form-control" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="presentation_card">Demo card</option><option value="presentation_wallet">Demo wallet</option><option value="not_required">No payment required (demo)</option></select></label>
       <div className="payment-notice"><strong>{PAYMENT_NOTICE}</strong></div>
       <div className="fee-summary"><span>Consultation fee</span><strong>{formatMmk(doctor.consultationFeeMmk)}</strong><span>Demo processing fee</span><strong>0 MMK</strong><span className="fee-total">Total</span><strong className="fee-total">{formatMmk(doctor.consultationFeeMmk)}</strong></div>
       {error && <div className="error-message" role="alert">{error}</div>}
-      <button className="button button--primary booking-submit" type="submit" disabled={submitting || !slotId || !patient}>{submitting ? 'Confirming…' : 'Confirm booking'}</button>
+      <button className="button button--primary booking-submit" type="submit" disabled={submitting || !slotId || !patient?.id}>{submitting ? 'Confirming…' : 'Confirm booking'}</button>
     </form>
   </section>
 }

@@ -18,7 +18,6 @@ export function ProtectedRoute() {
   const auth = useAuth()
   const location = useLocation()
 
-  if (auth.isFixtureMode) return <Outlet />
   if (auth.status === 'loading') return <LoadingSession />
   if (!auth.isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />
@@ -28,7 +27,6 @@ export function ProtectedRoute() {
 
 export function PublicOnlyRoute() {
   const auth = useAuth()
-  if (auth.isFixtureMode) return <Outlet />
   if (auth.status === 'loading') return <LoadingSession />
   if (auth.isAuthenticated) return <Navigate to="/dashboard" replace />
   return <Outlet />

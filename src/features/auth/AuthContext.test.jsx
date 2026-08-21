@@ -97,16 +97,17 @@ describe('session and route protection', () => {
     expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
   })
 
-  it('keeps protected demo routes available in fixture mode', () => {
+  it('guards protected routes even when fixture data is selected', () => {
     render(
       <AuthProvider client={null} configuration={{ mode: 'fixture', isConfigured: false }}>
         <MemoryRouter initialEntries={['/appointments']}>
           <Routes>
             <Route element={<ProtectedRoute />}><Route path="/appointments" element={<div>Fixture appointments</div>} /></Route>
+            <Route path="/login" element={<div>Prototype login</div>} />
           </Routes>
         </MemoryRouter>
       </AuthProvider>,
     )
-    expect(screen.getByText('Fixture appointments')).toBeInTheDocument()
+    expect(screen.getByText('Prototype login')).toBeInTheDocument()
   })
 })

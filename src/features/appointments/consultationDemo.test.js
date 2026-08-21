@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONSULTATION_DEMO_NOTICE, getConsultationEligibility, getCountdown, getDeterministicQueue, SYNTHETIC_CONSULTATION_SUMMARIES } from './consultationDemo.js'
+import { getConsultationEligibility, getCountdown, getDeterministicQueue, SYNTHETIC_CONSULTATION_SUMMARIES } from './consultationDemo.js'
 
 const now = new Date('2026-08-13T00:00:00.000Z')
 const eligible = { id: 'appointment-owned-1', status: 'confirmed', consultationType: 'video', scheduledAt: '2026-08-14T01:02:03.000Z' }
@@ -21,7 +21,6 @@ describe('consultation waiting-room demo state', () => {
   })
 
   it('labels all simulated content and summaries clearly', () => {
-    expect(CONSULTATION_DEMO_NOTICE).toBe('Presentation Demo — No live doctor or production video service is connected.')
     expect(SYNTHETIC_CONSULTATION_SUMMARIES.every(({ status }) => status === 'completed')).toBe(true)
   })
 })

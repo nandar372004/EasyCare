@@ -1,5 +1,5 @@
 const CLINICAL_PRESENTATION_TABLES = Object.freeze({
-  healthSummary: 'health_summaries', medications: 'medications', prescriptions: 'prescriptions', labResults: 'lab_results', messages: 'messages', invoices: 'invoices', nearbyFacilities: 'nearby_facilities', hospitals: 'hospitals',
+  healthSummary: 'health_summaries', prescriptions: 'prescriptions', labResults: 'lab_results', messages: 'messages', invoices: 'invoices', nearbyFacilities: 'nearby_facilities', hospitals: 'hospitals',
 })
 
 function requireClient(client) {
@@ -12,13 +12,48 @@ async function unwrap(query) {
   return data
 }
 
-const doctorFromRow = (row) => ({
-  ...row, profileId: row.profile_id, displayName: row.display_name ?? row.profiles?.display_name ?? 'Verified doctor',
-  hospitalId: row.hospital_id, hospitalName: row.hospital_name, consultationFeeMmk: row.consultation_fee_mmk,
-  experienceYears: row.experience_years ?? null, consultationTypes: row.consultation_types ?? ['video', 'voice', 'chat'], contactEmail: row.contact_email,
+const doctorFromRow = (row) => {
+  const primarySpecialty = row.provider_specialties?.find((item) => item.is_primary) ?? row.provider_specialties?.[0]
+  const consultationTypes = [
+    row.teleconsult_enabled ? 'video' : null,
+    row.teleconsult_enabled ? 'voice' : null,
+    row.home_visit_enabled ? 'home_visit' : null,
+  ].filter(Boolean)
+  return {
+    id: row.id,
+    displayName: row.display_name ?? 'Verified doctor',
+    specialty: primarySpecialty?.specialties?.name ?? 'General Practitioner',
+    qualification: row.qualification ?? 'Qualification information unavailable',
+    experienceYears: row.years_experience ?? null,
+    rating: row.rating_average == null ? null : Number(row.rating_average),
+    consultationFeeMmk: row.consultation_fee_mmk ?? 0,
+    languages: row.languages ?? [],
+    bio: row.bio ?? '',
+    hospitalName: row.service_area?.hospital ?? row.service_area?.clinic ?? 'Independent provider',
+    city: row.service_area?.city ?? null,
+    consultationTypes: consultationTypes.length ? consultationTypes : ['video'],
+    verificationStatus: row.verification_status,
+    isSynthetic: false,
+  }
+}
+const slotFromRow = (row) => ({ ...row, doctorId: row.provider_id, startsAt: row.start_at, endsAt: row.end_at, serviceType: row.service_type, consultationType: row.service_type === 'home_visit' ? 'home_visit' : 'video' })
+const appointmentFromRow = (row) => ({
+  ...row,
+  bookingCode: row.booking_code ?? `ECA-${row.id.slice(0, 8).toUpperCase()}`,
+  patientId: row.patient_id,
+  doctorId: row.provider_id,
+  slotId: row.provider_availability_id,
+  scheduledAt: row.scheduled_start,
+  scheduledEnd: row.scheduled_end,
+  consultationType: row.consultation_channel ?? (row.appointment_type === 'home_visit' ? 'home_visit' : 'video'),
+  symptoms: row.reason_symptoms,
+  feeMmk: Number(row.fee_amount ?? 0),
+  doctor: row.provider ? doctorFromRow({ ...row.provider, provider_specialties: [] }) : null,
 })
-const slotFromRow = (row) => ({ ...row, doctorId: row.provider_id, startsAt: row.starts_at, endsAt: row.ends_at, consultationType: row.consultation_type })
-const appointmentFromRow = (row) => ({ ...row, bookingCode: row.booking_code, idempotencyKey: row.idempotency_key, patientId: row.patient_id, doctorId: row.provider_id, slotId: row.availability_slot_id, scheduledAt: row.availability_slots?.starts_at ?? row.scheduled_at, consultationType: row.consultation_type, simulatedPaymentMethod: row.simulated_payment_method, feeMmk: row.fee_mmk })
+const APPOINTMENT_SELECT = 'id, patient_id, provider_id, provider_availability_id, appointment_type, consultation_channel, scheduled_start, scheduled_end, status, reason_symptoms, fee_amount, currency, booking_code, created_at, provider:providers!appointments_provider_id_fkey(id, provider_type, display_name, qualification, verification_status, years_experience, consultation_fee_mmk, rating_average)'
+const PATIENT_PROFILE_SELECT = 'id, auth_user_id, full_name, date_of_birth, gender, primary_phone, preferred_language, address_line, township, city, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, blood_type, care_preferences, status'
+const PATIENT_MEDICATION_SELECT = 'id, patient_id, medication_name, dose, frequency, instructions, start_date, end_date, status, medication_schedules(id, time_of_day, days_of_week, timezone, valid_from, valid_until)'
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const eventFromRow = (row) => ({ ...row, appointmentId: row.appointment_id, eventType: row.event_type, fromStatus: row.from_status, toStatus: row.to_status, createdAt: row.created_at })
 
 function lifecycleError(error, conflictMessage) {
@@ -33,24 +68,37 @@ export function createSupabaseRepository(client) {
   return {
     mode: 'supabase',
     metadata: Object.freeze({ isSynthetic: false, displayTimeZone: 'Asia/Yangon', readOnlyClinicalContent: true }),
-    async getPatient(id) { return unwrap(client.from('patients').select('*').eq('id', id).maybeSingle()) },
-    async getCurrentPatient() { const row = await unwrap(client.from('patients').select('*').maybeSingle()); return row ? { ...row, displayName: row.full_name } : null },
+    async getPatient(id) { return unwrap(client.from('patients').select(PATIENT_PROFILE_SELECT).eq('id', id).maybeSingle()) },
+    async getPatientProfile({ patientId, authUserId }) { return unwrap(client.from('patients').select(PATIENT_PROFILE_SELECT).eq('id', patientId).eq('auth_user_id', authUserId).single()) },
+    async updatePatientProfile({ patientId, authUserId, changes }) { return unwrap(client.from('patients').update(changes).eq('id', patientId).eq('auth_user_id', authUserId).select(PATIENT_PROFILE_SELECT).single()) },
     async listHospitals() { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.hospitals).select('*')) },
-    async listDoctors() { return (await unwrap(client.from('providers').select('*'))).map(doctorFromRow) },
-    async getDoctor(id) { const row = await unwrap(client.from('providers').select('*').eq('id', id).maybeSingle()); return row ? doctorFromRow(row) : null },
-    async listAvailabilitySlots({ doctorId } = {}) { let query = client.from('availability_slots').select('*'); if (doctorId) query = query.eq('provider_id', doctorId); return (await unwrap(query)).map(slotFromRow) },
-    async listAppointments({ status } = {}) { let query = client.from('appointments').select('*, availability_slots(starts_at)'); if (status) query = query.eq('status', status); return (await unwrap(query)).map(appointmentFromRow) },
-    async getAppointment(id) { const row = await unwrap(client.from('appointments').select('*, availability_slots(starts_at)').eq('id', id).maybeSingle()); return row ? appointmentFromRow(row) : null },
+    async listDoctors() {
+      const rows = await unwrap(client.from('providers')
+        .select('id, provider_type, display_name, qualification, verification_status, years_experience, bio, languages, service_area, home_visit_enabled, teleconsult_enabled, consultation_fee_mmk, rating_average, provider_specialties(is_primary, specialties(name))')
+        .eq('provider_type', 'doctor')
+        .eq('verification_status', 'verified'))
+      return rows.map(doctorFromRow)
+    },
+    async getDoctor(id) {
+      const row = await unwrap(client.from('providers')
+        .select('id, provider_type, display_name, qualification, verification_status, years_experience, bio, languages, service_area, home_visit_enabled, teleconsult_enabled, consultation_fee_mmk, rating_average, provider_specialties(is_primary, specialties(name))')
+        .eq('id', id)
+        .eq('provider_type', 'doctor')
+        .eq('verification_status', 'verified')
+        .maybeSingle())
+      return row ? doctorFromRow(row) : null
+    },
+    async listAvailabilitySlots({ doctorId } = {}) { let query = client.from('provider_availability').select('id, provider_id, service_type, start_at, end_at, status').eq('status', 'available'); if (doctorId) query = query.eq('provider_id', doctorId); return (await unwrap(query)).map(slotFromRow) },
+    async listAppointments({ patientId, status } = {}) { let query = client.from('appointments').select(APPOINTMENT_SELECT); if (patientId) query = query.eq('patient_id', patientId); if (status) query = query.eq('status', status); return (await unwrap(query)).map(appointmentFromRow) },
+    async getAppointment(id, { patientId } = {}) { let query = client.from('appointments').select(APPOINTMENT_SELECT).eq('id', id); if (patientId) query = query.eq('patient_id', patientId); const row = await unwrap(query.maybeSingle()); return row ? appointmentFromRow(row) : null },
     async listAppointmentEvents(appointmentId) { return (await unwrap(client.from('appointment_events').select('*').eq('appointment_id', appointmentId).order('created_at', { ascending: false }))).map(eventFromRow) },
     async createAppointment(input) {
-      const payload = { booking_code: input.bookingCode, idempotency_key: input.idempotencyKey, patient_id: input.patientId, provider_id: input.doctorId, availability_slot_id: input.slotId, consultation_type: input.consultationType, symptoms: input.symptoms?.trim() || null, simulated_payment_method: input.paymentMethod, fee_mmk: input.feeMmk }
-      const { data, error } = await client.from('appointments').insert(payload).select('*, availability_slots(starts_at)').single()
-      if (error?.code === '23505') {
-        const { data: existing } = await client.from('appointments').select('*, availability_slots(starts_at)').eq('patient_id', input.patientId).eq('idempotency_key', input.idempotencyKey).maybeSingle()
-        if (existing) return appointmentFromRow(existing)
-        throw new BookingConflictError()
-      }
-      if (error) throw new Error('Unable to complete the booking. Please try again.')
+      const appointmentType = input.consultationType === 'home_visit' ? 'home_visit' : 'teleconsultation'
+      const payload = { booking_code: input.bookingCode, patient_id: input.patientId, provider_id: input.doctorId, provider_availability_id: input.slotId, appointment_type: appointmentType, consultation_channel: input.consultationType, scheduled_start: input.startsAt, scheduled_end: input.endsAt, reason_symptoms: input.symptoms?.trim() || null, status: 'pending', fee_amount: input.feeMmk, currency: 'MMK', booked_by_profile_id: null }
+      const { data, error } = await client.from('appointments').insert(payload).select(APPOINTMENT_SELECT).single()
+      if (['23505', '23P01'].includes(error?.code)) throw new BookingConflictError()
+      if (error?.code === '42501') throw new Error('Please sign in again.')
+      if (error) throw new Error('Unable to book appointment.')
       return appointmentFromRow(data)
     },
     async rescheduleAppointment({ appointmentId, slotId, mutationKey }) {
@@ -64,7 +112,19 @@ export function createSupabaseRepository(client) {
       return this.getAppointment(appointmentId)
     },
     async getHealthSummary(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.healthSummary).select('*').eq('patient_id', patientId).maybeSingle()) },
-    async listMedications(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.medications).select('*').eq('patient_id', patientId)) },
+    async listMedications(patientId) {
+      if (!UUID_PATTERN.test(patientId ?? '')) throw new Error('A valid patient account is required.')
+      const rows = await unwrap(client.from('patient_medications').select(PATIENT_MEDICATION_SELECT).eq('patient_id', patientId).order('start_date', { ascending: false }))
+      return rows.map((row) => ({
+        id: row.id, patientId: row.patient_id, name: row.medication_name,
+        dosage: row.dose ?? '', frequency: row.frequency ?? '', instructions: row.instructions ?? '',
+        startDate: row.start_date, endDate: row.end_date, status: row.status,
+        schedules: (row.medication_schedules ?? []).map((schedule) => ({
+          id: schedule.id, timeOfDay: schedule.time_of_day, daysOfWeek: schedule.days_of_week,
+          timezone: schedule.timezone, validFrom: schedule.valid_from, validUntil: schedule.valid_until,
+        })),
+      }))
+    },
     async listPrescriptions(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.prescriptions).select('*').eq('patient_id', patientId)) },
     async listLabResults(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.labResults).select('*').eq('patient_id', patientId)) },
     async listMessages(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.messages).select('*').eq('patient_id', patientId)) },

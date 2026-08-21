@@ -15,9 +15,9 @@ const baseline = {
     { id: 'hospital-demo-002', name: 'Blue Sky Presentation Clinic', cityLabel: 'Synthetic East District', isSynthetic: true },
   ],
   doctors: [
-    { id: 'doctor-demo-001', profileId: 'profile-demo-doctor-001', hospitalId: 'hospital-demo-001', displayName: 'Dr. Demo Aster', specialty: 'General Medicine', qualification: 'Synthetic MBBS, Presentation MMed', experienceYears: 10, rating: 4.8, consultationFeeMmk: 25000, languages: ['my', 'en'], consultationTypes: ['video', 'voice', 'chat', 'home_visit'], isSynthetic: true },
+    { id: 'doctor-demo-001', profileId: 'profile-demo-doctor-001', hospitalId: 'hospital-demo-001', displayName: 'Dr. Demo Aster', specialty: 'General Medicine', qualification: 'Synthetic MBBS, Presentation MMed', experienceYears: 10, rating: 4.8, consultationFeeMmk: 25000, languages: ['my', 'en'], consultationTypes: ['video', 'voice', 'home_visit'], isSynthetic: true },
     { id: 'doctor-demo-002', profileId: 'profile-demo-doctor-002', hospitalId: 'hospital-demo-001', displayName: 'Dr. Demo Cedar', specialty: 'Paediatrics', qualification: 'Synthetic MBBS, Presentation DCH', experienceYears: 12, rating: 4.7, consultationFeeMmk: 30000, languages: ['my'], consultationTypes: ['video', 'voice', 'home_visit'], isSynthetic: true },
-    { id: 'doctor-demo-003', profileId: 'profile-demo-doctor-003', hospitalId: 'hospital-demo-002', displayName: 'Dr. Demo Lotus', specialty: 'Dermatology', qualification: 'Synthetic MBBS, Presentation MSc', experienceYears: 8, rating: 4.9, consultationFeeMmk: 35000, languages: ['my', 'en'], consultationTypes: ['video', 'chat'], isSynthetic: true },
+    { id: 'doctor-demo-003', profileId: 'profile-demo-doctor-003', hospitalId: 'hospital-demo-002', displayName: 'Dr. Demo Lotus', specialty: 'Dermatology', qualification: 'Synthetic MBBS, Presentation MSc', experienceYears: 8, rating: 4.9, consultationFeeMmk: 35000, languages: ['my', 'en'], consultationTypes: ['video', 'voice'], isSynthetic: true },
     { id: 'doctor-demo-004', profileId: 'profile-demo-doctor-004', hospitalId: 'hospital-demo-002', displayName: 'Dr. Demo Maple', specialty: 'Cardiology', qualification: 'Synthetic MBBS, Presentation MRCP', experienceYears: 15, rating: 4.6, consultationFeeMmk: 45000, languages: ['en'], consultationTypes: ['video', 'voice'], isSynthetic: true },
   ],
   availabilitySlots: [

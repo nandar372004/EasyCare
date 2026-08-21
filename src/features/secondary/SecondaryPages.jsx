@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, Bot, Building2, Check, ChevronRight, CreditCard, MessageSquare, Navigation, Phone, Search, Send, Settings as SettingsIcon } from 'lucide-react'
-import { useAuth } from '../auth/AuthContext.jsx'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, Bot, Building2, Check, ChevronRight, CreditCard, MessageSquare, Navigation, Phone, Search, Send } from 'lucide-react'
 import { conversations, facilities, invoices, PRESENTATION_ONLY } from './secondaryFixtures.js'
 import { useLocalization } from '../localization/LocalizationContext.jsx'
 import { GUARDIAN_MAX_INPUT_LENGTH } from '../guardian/guardianSafety.js'
 import { requestGuardianGuidance } from '../../services/guardianGatewayService.js'
+import { PatientSettingsPage } from './PatientSettingsPage.jsx'
 
 function DemoBanner({ children = PRESENTATION_ONLY, danger = false }) {
   return <div className={`secondary-demo-banner${danger ? ' danger' : ''}`} role="note"><AlertTriangle aria-hidden="true" /> <strong>{children}</strong></div>
@@ -52,7 +52,7 @@ export function MessagesPage() {
   const [query, setQuery] = useState(''); const [selectedId, setSelectedId] = useState(conversations[0].id); const [draft, setDraft] = useState(''); const [local, setLocal] = useState({})
   const visible = conversations.filter(c => `${c.name} ${c.specialty}`.toLowerCase().includes(query.toLowerCase())); const selected = conversations.find(c => c.id === selectedId) || visible[0]
   const send = e => { e.preventDefault(); if (!draft.trim() || !selected) return; setLocal(v => ({ ...v, [selected.id]: [...(v[selected.id] || []), draft.trim()] })); setDraft('') }
-  return <section className="secondary-page"><PageTitle icon={MessageSquare} title={t('nav.messages')} subtitle="Synthetic conversations with local-only sending." /><DemoBanner>{t('simulation.messages')}</DemoBanner>
+  return <section className="secondary-page"><PageTitle icon={MessageSquare} title={t('nav.messages')} subtitle="Message your EasyCare care coordinator." /><DemoBanner>{t('simulation.messages')}</DemoBanner>
     <div className="messages-layout card"><aside className="conversation-list"><label className="conversation-search"><Search /><input aria-label="Search conversations" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search conversations…" /></label>{visible.map(c => <button className={c.id === selected?.id ? 'active' : ''} key={c.id} onClick={() => setSelectedId(c.id)}><strong>{c.name}</strong><span>{c.specialty}</span><small>{c.preview}</small></button>)}</aside><section className="message-thread">{selected ? <><header><strong>{selected.name}</strong><span>{selected.specialty} · Synthetic conversation</span></header><div className="message-stream">{selected.messages.map((m,i) => <p className="received" key={i}>{m}</p>)}{(local[selected.id] || []).map((m,i) => <p className="sent" key={i}>{m}<small>Local presentation message — not delivered</small></p>)}</div><form onSubmit={send}><input aria-label="Presentation message" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Type a local presentation message…" /><button className="primary-button" disabled={!draft.trim()}><Send /> Send locally</button></form></> : <p>No matching conversations.</p>}</section></div>
   </section>
 }
@@ -141,12 +141,5 @@ export function LocationSosPage() {
 }
 
 export function SettingsPage() {
-  const { t, language, setLanguage } = useLocalization()
-  const { patient, user, signOut } = useAuth(); const navigate = useNavigate(); const [editing, setEditing] = useState(false); const [saved, setSaved] = useState(false)
-  const initialName = patient?.full_name || 'EasyCare Patient'; const [name, setName] = useState(initialName); const [appearance, setAppearance] = useState('Light'); const [notifications, setNotifications] = useState(true)
-  const save = e => { e.preventDefault(); setEditing(false); setSaved(true) }; const logout = async () => { await signOut(); navigate('/login', { replace: true }) }
-  return <section className="secondary-page"><PageTitle icon={SettingsIcon} title={t('settings.title')} subtitle={t('settings.subtitle')} /><DemoBanner>{t('simulation.settings')}</DemoBanner>
-    <div className="settings-grid"><form className="card settings-profile" onSubmit={save}><h2>{t('settings.profile')}</h2><label>{t('settings.displayName')}<input value={name} onChange={e => setName(e.target.value)} disabled={!editing} maxLength={80} /></label><label>{t('settings.email')}<input value={user?.email || 'patient.demo@example.com'} disabled /></label><p>{t('settings.noMedical')}</p>{editing ? <button className="primary-button">{t('settings.saveProfile')}</button> : <button type="button" className="outline-button" onClick={() => {setEditing(true); setSaved(false)}}>{t('settings.editProfile')}</button>}{saved && <span role="status">{t('settings.saved')}</span>}</form>
-      <div className="card preference-list"><h2>{t('settings.preferences')}</h2><label>{t('settings.language')}<select value={language} onChange={e => setLanguage(e.target.value)}><option value="en">English</option><option value="my">မြန်မာ</option></select></label><label>{t('settings.appearance')}<select value={appearance} onChange={e => setAppearance(e.target.value)}><option value="Light">{t('settings.light')}</option><option value="System">{t('settings.system')}</option></select></label><label className="toggle-row"><span>{t('settings.notifications')}</span><input type="checkbox" checked={notifications} onChange={e => setNotifications(e.target.checked)} /></label><button className="outline-button danger-text" onClick={logout}>{t('action.logout')}</button></div></div>
-  </section>
+  return <PatientSettingsPage />
 }

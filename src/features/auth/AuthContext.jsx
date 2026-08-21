@@ -1,11 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { loadAuthorizedPatient, signInPatient, signOutPatient } from '../../services/authService.js'
 import { supabase, supabaseConfiguration } from '../../lib/supabase.js'
+import { clearPrototypeSession, DEMO_AUTH_ERROR, DEMO_CREDENTIALS, HACKATHON_PROTOTYPE, loadPrototypeSession, savePrototypeSession } from '../../lib/prototypeMode.js'
+import { normalizeMyanmarPhone } from './registrationSchema.js'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children, client = supabase, configuration = supabaseConfiguration }) {
-  const [state, setState] = useState({ status: client ? 'loading' : 'fixture', session: null, user: null, patient: null })
+  const prototypeActive = HACKATHON_PROTOTYPE && client === supabase
+  const [state, setState] = useState(() => {
+    const prototypeSession = loadPrototypeSession()
+    if (prototypeActive) return prototypeSession
+      ? { status: 'authenticated', session: prototypeSession, user: null, patient: { full_name: prototypeSession.fullName, isPrototype: true } }
+      : { status: 'anonymous', session: null, user: null, patient: null }
+    return { status: client ? 'loading' : 'fixture', session: null, user: null, patient: null }
+  })
   const hydrationId = useRef(0)
 
   const hydrateSession = useCallback(async (session) => {
@@ -28,6 +37,7 @@ export function AuthProvider({ children, client = supabase, configuration = supa
   }, [client])
 
   useEffect(() => {
+    if (prototypeActive) return undefined
     if (!client) return undefined
 
     let active = true
@@ -44,36 +54,58 @@ export function AuthProvider({ children, client = supabase, configuration = supa
       hydrationId.current += 1
       data.subscription.unsubscribe()
     }
-  }, [client, hydrateSession])
+  }, [client, hydrateSession, prototypeActive])
 
   const signIn = useCallback(async (credentials) => {
+    if (prototypeActive) {
+      if (normalizeMyanmarPhone(credentials.phoneNumber) !== normalizeMyanmarPhone(DEMO_CREDENTIALS.phoneNumber) || credentials.password !== DEMO_CREDENTIALS.password) throw new Error(DEMO_AUTH_ERROR)
+      const prototypeSession = savePrototypeSession('Demo Patient')
+      const result = { session: prototypeSession, user: null, patient: { full_name: prototypeSession.fullName, isPrototype: true } }
+      setState({ status: 'authenticated', ...result })
+      return result
+    }
     const result = await signInPatient(credentials, client)
     setState({ status: 'authenticated', session: result.session, user: result.user, patient: result.patient })
     return result
-  }, [client])
+  }, [client, prototypeActive])
 
   const signOut = useCallback(async () => {
+    if (prototypeActive) {
+      clearPrototypeSession()
+      setState({ status: 'anonymous', session: null, user: null, patient: null })
+      return
+    }
     await signOutPatient(client)
     setState({ status: client ? 'anonymous' : 'fixture', session: null, user: null, patient: null })
-  }, [client])
+  }, [client, prototypeActive])
 
-  const continueWithoutAccount = useCallback((fullName) => {
+  const registerPrototype = useCallback((fullName) => {
+    const prototypeSession = savePrototypeSession(fullName)
     setState({
       status: 'authenticated',
-      session: null,
+      session: prototypeSession,
       user: null,
-      patient: { full_name: fullName?.trim() || 'EasyCare Patient', isTemporary: true },
+      patient: { full_name: prototypeSession.fullName, isPrototype: true },
     })
+  }, [])
+
+  const synchronizePatient = useCallback((patient) => {
+    if (!patient?.id) return
+    setState((current) => current.patient?.id === patient.id
+      ? { ...current, patient: { ...current.patient, ...patient } }
+      : current)
   }, [])
 
   const value = useMemo(() => ({
     ...state,
     signIn,
     signOut,
-    continueWithoutAccount,
-    isFixtureMode: configuration.mode === 'fixture',
+    registerPrototype,
+    synchronizePatient,
+    isPrototypeMode: prototypeActive,
+    isFixtureMode: prototypeActive || configuration.mode === 'fixture',
     isAuthenticated: state.status === 'authenticated',
-  }), [state, signIn, signOut, configuration.mode])
+  }), [state, signIn, signOut, registerPrototype, synchronizePatient, configuration.mode, prototypeActive])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

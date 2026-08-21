@@ -7,9 +7,7 @@ export const invoices = [
 ]
 
 export const conversations = [
-  { id: 'thiri', name: 'Dr. Thiri Nyein', specialty: 'General Medicine', preview: 'Thank you for the update.', messages: ['Hello. This is a synthetic conversation for presentation.', 'Thank you for the update. No real doctor received this message.'] },
-  { id: 'aung', name: 'Dr. Aung Min', specialty: 'Cardiology', preview: 'Your presentation appointment is listed.', messages: ['Your presentation appointment is listed in the app.'] },
-  { id: 'support', name: 'EasyCare Demo Support', specialty: 'Presentation support', preview: 'How can the demo help?', messages: ['This channel is synthetic and is not monitored.'] },
+  { id: 'care-coordinator', name: 'EasyCare Care Coordinator', specialty: 'Patient Care Coordination', preview: 'How can I help coordinate your care?', messages: ['Hello, I am your EasyCare care coordinator.', 'I can help with appointments, home visits, and general care coordination.'] },
 ]
 
 export const facilities = [

@@ -25,9 +25,9 @@ describe('secondary presentation pages', () => {
 
   it('searches conversations and sends only a local presentation message', () => {
     renderRoute(<MessagesPage />)
-    fireEvent.change(screen.getByLabelText('Search conversations'), { target: { value: 'support' } })
-    expect(screen.getByRole('button', { name: /EasyCare Demo Support/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /EasyCare Demo Support/ }))
+    fireEvent.change(screen.getByLabelText('Search conversations'), { target: { value: 'coordinator' } })
+    expect(screen.getByRole('button', { name: /EasyCare Care Coordinator/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /EasyCare Care Coordinator/ }))
     fireEvent.change(screen.getByLabelText('Presentation message'), { target: { value: 'Hello demo' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send locally' }))
     expect(screen.getByText('Local presentation message — not delivered')).toBeInTheDocument()

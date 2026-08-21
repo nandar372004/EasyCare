@@ -16,8 +16,8 @@ export function Header() {
         <button className="icon-button" type="button" aria-label="Notifications are not available yet">
           <Bell aria-hidden="true" /><span className="notification-dot" aria-hidden="true" />
         </button>
-        {!auth.isFixtureMode && auth.isAuthenticated && (
-          <Link className="icon-button" to="/" aria-label="Back to home">
+        {auth.isAuthenticated && (
+          <Link className="icon-button" to="/login" onClick={() => void auth.signOut()} aria-label="Log out">
             <LogOut aria-hidden="true" />
           </Link>
         )}

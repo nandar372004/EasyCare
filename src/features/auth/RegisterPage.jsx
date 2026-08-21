@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext.jsx'
-import { registerPatient } from '../../services/registrationService.js'
+import { registerPatient, submitRegistration } from '../../services/registrationService.js'
 
 const initialValues = {
   phoneNumber: '',
@@ -70,7 +70,9 @@ export function RegisterPage() {
     setErrorMessage('')
     setIsSubmitting(true)
 
-    const result = await registerPatient(values)
+    const result = auth.isPrototypeMode
+      ? submitRegistration(values)
+      : await registerPatient(values)
     if (!result.success) {
       const nextErrors = result.errors ?? {}
       setErrors(nextErrors)
@@ -86,7 +88,8 @@ export function RegisterPage() {
     }
 
     try {
-      await auth.signIn({ phoneNumber: values.phoneNumber, password: values.password })
+      if (auth.isPrototypeMode) auth.registerPrototype(values.fullName)
+      else await auth.signIn({ phoneNumber: values.phoneNumber, password: values.password })
       setValues((current) => ({ ...current, password: '', confirmPassword: '' }))
       navigate('/dashboard', { replace: true })
     } catch {
@@ -140,7 +143,7 @@ export function RegisterPage() {
           <legend><span>2</span>Personal Information</legend>
           <div className="form-grid">
             <FormField label="Full Name" name="fullName" error={errors.fullName}>
-              <input className="form-control" id="fullName" name="fullName" type="text" autoComplete="name" value={values.fullName} onChange={updateValue} aria-invalid={Boolean(errors.fullName)} aria-describedby={describedBy('fullName')} />
+              <input className="form-control" id="fullName" name="fullName" type="text" autoComplete="name" maxLength="160" value={values.fullName} onChange={updateValue} aria-invalid={Boolean(errors.fullName)} aria-describedby={describedBy('fullName')} />
             </FormField>
             <FormField label="Date of Birth" name="dateOfBirth" error={errors.dateOfBirth}>
               <input className="form-control" id="dateOfBirth" name="dateOfBirth" type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} value={values.dateOfBirth} onChange={updateValue} aria-invalid={Boolean(errors.dateOfBirth)} aria-describedby={describedBy('dateOfBirth')} />
@@ -152,7 +155,7 @@ export function RegisterPage() {
               </select>
             </FormField>
             <FormField label="Address / City" name="addressCity" error={errors.addressCity}>
-              <input className="form-control" id="addressCity" name="addressCity" type="text" autoComplete="address-level2" value={values.addressCity} onChange={updateValue} aria-invalid={Boolean(errors.addressCity)} aria-describedby={describedBy('addressCity')} />
+              <input className="form-control" id="addressCity" name="addressCity" type="text" autoComplete="address-level2" maxLength="300" value={values.addressCity} onChange={updateValue} aria-invalid={Boolean(errors.addressCity)} aria-describedby={describedBy('addressCity')} />
             </FormField>
           </div>
         </fieldset>
@@ -161,10 +164,10 @@ export function RegisterPage() {
           <legend><span>3</span>Emergency Contact</legend>
           <div className="form-grid">
             <FormField label="Contact Person Name" name="emergencyName" error={errors.emergencyName}>
-              <input className="form-control" id="emergencyName" name="emergencyName" type="text" autoComplete="off" value={values.emergencyName} onChange={updateValue} aria-invalid={Boolean(errors.emergencyName)} aria-describedby={describedBy('emergencyName')} />
+              <input className="form-control" id="emergencyName" name="emergencyName" type="text" autoComplete="off" maxLength="160" value={values.emergencyName} onChange={updateValue} aria-invalid={Boolean(errors.emergencyName)} aria-describedby={describedBy('emergencyName')} />
             </FormField>
             <FormField label="Relationship" name="emergencyRelationship" error={errors.emergencyRelationship}>
-              <input className="form-control" id="emergencyRelationship" name="emergencyRelationship" type="text" autoComplete="off" value={values.emergencyRelationship} onChange={updateValue} aria-invalid={Boolean(errors.emergencyRelationship)} aria-describedby={describedBy('emergencyRelationship')} />
+              <input className="form-control" id="emergencyRelationship" name="emergencyRelationship" type="text" autoComplete="off" maxLength="80" value={values.emergencyRelationship} onChange={updateValue} aria-invalid={Boolean(errors.emergencyRelationship)} aria-describedby={describedBy('emergencyRelationship')} />
             </FormField>
             <FormField label="Emergency Phone Number" name="emergencyPhoneNumber" error={errors.emergencyPhoneNumber}>
               <input className="form-control" id="emergencyPhoneNumber" name="emergencyPhoneNumber" type="tel" inputMode="tel" autoComplete="off" value={values.emergencyPhoneNumber} onChange={updateValue} aria-invalid={Boolean(errors.emergencyPhoneNumber)} aria-describedby={describedBy('emergencyPhoneNumber')} />
@@ -185,13 +188,13 @@ export function RegisterPage() {
               <label><input name="noKnownAllergies" type="checkbox" checked={values.noKnownAllergies} onChange={updateValue} />No known allergies</label>
             </div>
             <FormField label="Allergies" name="allergies" error={errors.allergies} className="form-field--wide">
-              <textarea className="form-control" id="allergies" name="allergies" rows="3" disabled={values.noKnownAllergies} value={values.allergies} onChange={updateValue} aria-invalid={Boolean(errors.allergies)} aria-describedby={describedBy('allergies')} />
+              <textarea className="form-control" id="allergies" name="allergies" rows="3" maxLength="1000" disabled={values.noKnownAllergies} value={values.allergies} onChange={updateValue} aria-invalid={Boolean(errors.allergies)} aria-describedby={describedBy('allergies')} />
             </FormField>
             <FormField label="Existing Medical Conditions (optional)" name="existingMedicalConditions" error={errors.existingMedicalConditions}>
-              <textarea className="form-control" id="existingMedicalConditions" name="existingMedicalConditions" rows="3" value={values.existingMedicalConditions} onChange={updateValue} />
+              <textarea className="form-control" id="existingMedicalConditions" name="existingMedicalConditions" rows="3" maxLength="2000" value={values.existingMedicalConditions} onChange={updateValue} />
             </FormField>
             <FormField label="Current Medications (optional)" name="currentMedications" error={errors.currentMedications}>
-              <textarea className="form-control" id="currentMedications" name="currentMedications" rows="3" value={values.currentMedications} onChange={updateValue} />
+              <textarea className="form-control" id="currentMedications" name="currentMedications" rows="3" maxLength="2000" value={values.currentMedications} onChange={updateValue} />
             </FormField>
           </div>
         </fieldset>

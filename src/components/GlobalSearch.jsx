@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bot, CalendarDays, ClipboardList, HeartPulse, Pill, Search, Stethoscope, Video, X } from 'lucide-react'
 import { presentationRepository } from '../services/repositories/index.js'
+import { useAuth } from '../features/auth/AuthContext.jsx'
 
 const PAGES = [
   { to: '/doctors', label: 'Doctors', icon: Stethoscope, description: 'Find and consult with doctors' },
@@ -16,6 +17,7 @@ const PAGES = [
 const MAX_RESULTS = 8
 
 export function GlobalSearch() {
+  const { patient } = useAuth()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -28,11 +30,12 @@ export function GlobalSearch() {
 
   useEffect(() => {
     let cancelled = false
+    if (!patient?.id) { setMedications([]); return undefined }
     setLoading(true)
     Promise.all([
       presentationRepository.listDoctors(),
       presentationRepository.listAppointments(),
-      presentationRepository.listMedications(),
+      presentationRepository.listMedications(patient.id),
     ])
       .then(([doctorsData, appointmentsData, medicationsData]) => {
         if (!cancelled) {
@@ -46,7 +49,7 @@ export function GlobalSearch() {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [])
+  }, [patient?.id])
 
   const results = useMemo(() => {
     if (!query.trim()) return []

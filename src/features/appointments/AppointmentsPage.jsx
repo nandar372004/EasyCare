@@ -5,6 +5,7 @@ import { presentationRepository } from '../../services/repositories/index.js'
 import { formatMmk, formatPresentationDateTime } from '../../lib/presentationFormatting.js'
 import { BookingConflictError, canJoinWaitingRoom, createIdempotencyKey, isFutureEligibleAppointment } from '../../services/bookingService.js'
 import { useLocalization } from '../localization/LocalizationContext.jsx'
+import { useAuth } from '../auth/AuthContext.jsx'
 
 const TYPE_LABELS = { video: 'Video consultation', voice: 'Voice call', chat: 'Chat', home_visit: 'Home visit' }
 const TYPE_ICONS = { video: Video, voice: Phone, chat: MessageSquare, home_visit: House }
@@ -16,24 +17,31 @@ export function AppointmentsPage() {
 
 function AppointmentsPageContent() {
   const { t, locale } = useLocalization()
+  const { patient } = useAuth()
   const { id } = useParams()
   const [appointments, setAppointments] = useState([])
   const [appointment, setAppointment] = useState(null)
   const [doctors, setDoctors] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const load = useCallback(async () => {
-    setLoading(true)
-    const [appointmentData, doctorRows] = await Promise.all([id ? presentationRepository.getAppointment(id) : presentationRepository.listAppointments(), presentationRepository.listDoctors()])
-    if (id) setAppointment(appointmentData); else setAppointments(appointmentData)
-    setDoctors(doctorRows); setLoading(false)
-  }, [id])
+    setLoading(true); setLoadError('')
+    if (!patient?.id) { setLoadError('Please sign in again.'); setLoading(false); return }
+    try {
+      const [appointmentData, doctorRows] = await Promise.all([id ? presentationRepository.getAppointment(id, { patientId: patient.id }) : presentationRepository.listAppointments({ patientId: patient.id }), presentationRepository.listDoctors()])
+      if (id) setAppointment(appointmentData); else setAppointments(appointmentData)
+      setDoctors(doctorRows)
+    } catch { setLoadError('Unable to load appointments.') }
+    finally { setLoading(false) }
+  }, [id, patient?.id])
   useEffect(() => { void load() }, [load])
-  const doctorFor = (item) => doctors.find((doctor) => doctor.id === item?.doctorId)
+  const doctorFor = (item) => item?.doctor ?? doctors.find((doctor) => doctor.id === item?.doctorId)
   const filtered = useMemo(() => appointments.filter((item) => filter === 'all' || (filter === 'upcoming' ? ['pending', 'confirmed', 'checked_in', 'in_progress'].includes(item.status) : item.status === filter)).sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt)), [appointments, filter])
   const featuredAppointment = filtered.filter(isFutureEligibleAppointment).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))[0] ?? filtered[0]
   const otherAppointments = featuredAppointment ? filtered.filter((item) => item.id !== featuredAppointment.id) : []
   if (loading) return <section><h1>{id ? 'Appointment Details' : 'Appointments'}</h1><p role="status">Loading appointments…</p></section>
+  if (loadError) return <section className="card empty-state"><h1>Unable to load appointments</h1><p role="alert">{loadError}</p><button className="button button--secondary" type="button" onClick={() => void load()}>Try again</button></section>
   if (id) return appointment ? <AppointmentDetails initialAppointment={appointment} doctor={doctorFor(appointment)} onCanonicalChange={setAppointment} /> : <section className="card empty-state"><h1>{t('appointment.notFound')}</h1><p>{t('appointment.noAccess')}</p><Link className="button button--secondary" to="/appointments">{t('appointment.title')}</Link></section>
   return <section className="appointments-page"><header className="appointments-heading"><div><h1>{t('appointment.title')}</h1><p>{t('appointment.manage')}</p></div></header>
     <div className="appointment-filters" role="tablist" aria-label="Appointment filters">{['all', 'upcoming', 'completed', 'cancelled'].map((item) => <button type="button" role="tab" aria-selected={filter === item} className={`appointment-filter-tab${filter === item ? ' active' : ''}`} key={item} onClick={() => setFilter(item)}>{item === 'all' ? 'All Appointments' : t(`status.${item}`)}</button>)}</div>
@@ -49,6 +57,7 @@ function FeaturedAppointmentCard({ appointment, doctor, photoIndex, locale }) {
   const date = appointmentDateParts(appointment.scheduledAt, locale)
   const joinable = canJoinWaitingRoom(appointment)
   const eligible = isFutureEligibleAppointment(appointment)
+  const allowLifecycle = presentationRepository.mode !== 'supabase'
   return <article className="featured-appointment card">
     <div className="featured-identity">
       <AppointmentDateBlock date={date} />
@@ -68,8 +77,8 @@ function FeaturedAppointmentCard({ appointment, doctor, photoIndex, locale }) {
     <div className="featured-actions">
       {joinable && <Link className="button button--primary" to={`/consultations/${appointment.id}`}>Join Waiting Room</Link>}
       <Link className="button button--secondary" to={`/appointments/${appointment.id}`}>View Details</Link>
-      {eligible && <button className="button button--secondary" type="button" onClick={() => window.location.href = `/appointments/${appointment.id}`}>Reschedule</button>}
-      {eligible && <button className="button button--danger" type="button" onClick={() => window.location.href = `/appointments/${appointment.id}`}>Cancel Appointment</button>}
+      {allowLifecycle && eligible && <button className="button button--secondary" type="button" onClick={() => window.location.href = `/appointments/${appointment.id}`}>Reschedule</button>}
+      {allowLifecycle && eligible && <button className="button button--danger" type="button" onClick={() => window.location.href = `/appointments/${appointment.id}`}>Cancel Appointment</button>}
     </div>
   </article>
 }
@@ -135,22 +144,25 @@ class AppointmentsUiBoundary extends Component {
 }
 
 function AppointmentDetails({ initialAppointment, doctor, onCanonicalChange }) {
+  const { patient } = useAuth()
   const [appointment, setAppointment] = useState(initialAppointment)
   const [events, setEvents] = useState([])
   const [mode, setMode] = useState(null)
   const [feedback, setFeedback] = useState(null)
   const refresh = useCallback(async () => {
-    const [current, history] = await Promise.all([presentationRepository.getAppointment(appointment.id), presentationRepository.listAppointmentEvents(appointment.id)])
+    const current = await presentationRepository.getAppointment(appointment.id, { patientId: patient?.id })
+    const history = presentationRepository.mode === 'supabase' ? [] : await presentationRepository.listAppointmentEvents(appointment.id)
     if (current) { setAppointment(current); onCanonicalChange(current) }
     setEvents(history)
-  }, [appointment.id, onCanonicalChange])
+  }, [appointment.id, onCanonicalChange, patient?.id])
   useEffect(() => { void refresh() }, [refresh])
   const remote = appointment.consultationType !== 'home_visit'
   const eligible = isFutureEligibleAppointment(appointment)
   const joinable = canJoinWaitingRoom(appointment)
+  const allowLifecycle = presentationRepository.mode !== 'supabase'
   return <section className="appointment-details"><Link className="back-link" to="/appointments">← Back to appointments</Link>
     {feedback && <div className={`lifecycle-feedback ${feedback.type}`} role="status"><CheckCircle2 aria-hidden="true" /><span>{feedback.message}</span><button type="button" aria-label="Dismiss status" onClick={() => setFeedback(null)}>×</button></div>}
-    <article className="card appointment-detail-hero"><div><span className={`status-badge status-${appointment.status}`}>{appointment.status.replace('_', ' ')}</span><h1>{doctor?.displayName ?? 'Doctor appointment'}</h1><p>{doctor?.specialty} · {TYPE_LABELS[appointment.consultationType]}</p><strong className="booking-code">{appointment.bookingCode}</strong></div><div className="appointment-detail-actions">{joinable && <Link className="button button--primary" to={`/consultations/${appointment.id}`}>Join waiting room</Link>}<button className="button button--secondary" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('reschedule')}>Reschedule</button><button className="button button--danger" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('cancel')}>Cancel appointment</button></div></article>
+    <article className="card appointment-detail-hero"><div><span className={`status-badge status-${appointment.status}`}>{appointment.status.replace('_', ' ')}</span><h1>{doctor?.displayName ?? 'Doctor appointment'}</h1><p>{doctor?.specialty} · {TYPE_LABELS[appointment.consultationType]}</p><strong className="booking-code">{appointment.bookingCode}</strong></div><div className="appointment-detail-actions">{joinable && <Link className="button button--primary" to={`/consultations/${appointment.id}`}>Join waiting room</Link>}{allowLifecycle && <button className="button button--secondary" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('reschedule')}>Reschedule</button>}{allowLifecycle && <button className="button button--danger" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('cancel')}>Cancel appointment</button>}</div></article>
     {!eligible && <div className="eligibility-note"><AlertTriangle aria-hidden="true" /><span>{['completed', 'cancelled'].includes(appointment.status) ? `${appointment.status[0].toUpperCase() + appointment.status.slice(1)} appointments cannot be rescheduled, cancelled, or joined.` : 'Only future pending or confirmed appointments can be changed.'}</span></div>}
     {mode === 'reschedule' && <ReschedulePanel appointment={appointment} onClose={() => setMode(null)} onChanged={async () => { setMode(null); await refresh(); setFeedback({ type: 'success', message: 'Appointment rescheduled successfully. Your dashboard and appointment details now show the new time.' }) }} />}
     {mode === 'cancel' && <CancelPanel appointment={appointment} onClose={() => setMode(null)} onChanged={async () => { setMode(null); await refresh(); setFeedback({ type: 'success', message: 'Appointment cancelled. The appointment time has been released safely.' }) }} />}

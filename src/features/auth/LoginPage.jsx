@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext.jsx'
 import { getSafeReturnPath } from './RouteGuards.jsx'
 import { GENERIC_AUTH_ERROR } from '../../services/authService.js'
+import { DEMO_AUTH_ERROR, DEMO_CREDENTIALS } from '../../lib/prototypeMode.js'
 
 export function LoginPage() {
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -20,11 +21,6 @@ export function LoginPage() {
     event.preventDefault()
     setErrorMessage('')
 
-    if (auth.isFixtureMode) {
-      setErrorMessage('Authentication is unavailable in fixture mode. Demo routes remain directly accessible.')
-      return
-    }
-
     setIsSubmitting(true)
     try {
       await auth.signIn({ phoneNumber, password })
@@ -32,7 +28,7 @@ export function LoginPage() {
       navigate(getSafeReturnPath(location.state), { replace: true })
     } catch {
       setPassword('')
-      setErrorMessage(GENERIC_AUTH_ERROR)
+      setErrorMessage(auth.isPrototypeMode ? DEMO_AUTH_ERROR : GENERIC_AUTH_ERROR)
     } finally {
       setIsSubmitting(false)
     }
@@ -43,6 +39,7 @@ export function LoginPage() {
       <span className="ec-signin-lock"><LockKeyhole aria-hidden="true" /></span>
       <h2>Sign In</h2>
       <p className="muted">Access your EasyCare account</p>
+      {auth.isPrototypeMode && <div className="success-message" role="note">Demo login: {DEMO_CREDENTIALS.phoneNumber} / {DEMO_CREDENTIALS.password}</div>}
       <div className="ec-signin-tabs" role="tablist" aria-label="Sign-in method"><button type="button" role="tab" aria-selected="true"><Smartphone/>Phone Number</button><button type="button" role="tab" aria-selected="false" aria-disabled="true" title="Email sign-in is not available yet"><Mail/>Email (Optional)</button></div>
       {location.state?.registered && <div className="success-message" role="status">Registration completed. You can now sign in.</div>}
       {errorMessage && <div className="error-message" role="alert">{errorMessage}</div>}

@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, Beaker, CheckCircle2, Download, FileHeart, FileText, HeartPulse, Pill, ShieldCheck, Syringe, X } from 'lucide-react'
 import { formatPresentationDateTime } from '../../lib/presentationFormatting.js'
-import { HEALTH_PRESENTATION_NOTICE, healthOverview, healthRecords, presentationLabResults, presentationMedications, presentationPrescriptions } from './healthPresentationData.js'
+import { HEALTH_PRESENTATION_NOTICE, healthOverview, healthRecords, presentationLabResults, presentationPrescriptions } from './healthPresentationData.js'
+import { presentationRepository } from '../../services/repositories/index.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 
-function HealthHeader({ eyebrow, title, description, children }) {
-  return <><section className="demo-banner" role="note"><ShieldCheck aria-hidden="true" /><span><strong>{HEALTH_PRESENTATION_NOTICE}</strong> Read-only and non-production.</span></section><header className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{children}</header></>
+function HealthHeader({ eyebrow, title, description, children, presentation = true }) {
+  return <>{presentation && <section className="demo-banner" role="note"><ShieldCheck aria-hidden="true" /><span><strong>{HEALTH_PRESENTATION_NOTICE}</strong> Read-only and non-production.</span></section>}<header className="page-heading"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{children}</header></>
 }
 
 function DetailPanel({ title, onClose, children }) {
@@ -34,7 +36,7 @@ export function PrescriptionsPage() {
   return <section><HealthHeader eyebrow="Read-only presentation" title="Prescriptions" description="Synthetic prescription history for interface demonstration only." />
     <div className="filter-row">{['active', 'past'].map((item) => <button className={`filter-chip${tab === item ? ' active' : ''}`} key={item} onClick={() => setTab(item)}>{item === 'active' ? 'Active Prescriptions' : 'Past Prescriptions'}</button>)}</div>
     {downloadNotice && <div className="lifecycle-feedback success" role="status"><CheckCircle2 aria-hidden="true" /><span>No document was generated. A false prescription cannot be downloaded from this presentation.</span><button onClick={() => setDownloadNotice(false)}>×</button></div>}
-    <div className="prescription-list">{presentationPrescriptions.filter((item) => item.status === tab).map((item) => <article className="card prescription-card" key={item.id}><span className="health-record-icon"><FileText aria-hidden="true" /></span><div><h2>{item.medicine}</h2><p>{item.doctor} · Issued {formatPresentationDateTime(item.issuedAt)}</p><div className="rx-facts"><span>Dosage <strong>{item.dosage}</strong></span><span>Frequency <strong>{item.frequency}</strong></span><span>Duration <strong>{item.duration}</strong></span></div></div><div className="health-actions"><button className="button button--secondary" onClick={() => setSelected(item)}>View Details</button><button className="button button--secondary" onClick={() => setDownloadNotice(true)}><Download aria-hidden="true" /> Download unavailable</button></div></article>)}</div>
+    <div className="prescription-list">{presentationPrescriptions.filter((item) => item.status === tab).map((item) => <article className="card prescription-card" key={item.id}><span className="health-record-icon"><FileText aria-hidden="true" /></span><div><h2>{item.medicine}</h2><p>{item.doctor} · Issued {formatPresentationDateTime(item.issuedAt)}</p><div className="rx-facts"><span>Dosage <strong>{item.dosage}</strong></span><span>Frequency <strong>{item.frequency}</strong></span><span>Duration <strong>{item.duration}</strong></span></div></div><div className="health-actions"><button className="button button--secondary" onClick={() => setSelected(item)}>View Details</button><button className="button button--secondary" onClick={() => setDownloadNotice(true)}><Download aria-hidden="true" /> Download Prescription</button></div></article>)}</div>
     {selected && <DetailPanel title={selected.medicine} onClose={() => setSelected(null)}><p>{selected.instructions}</p><p><strong>This is not a valid prescription or medical document.</strong></p></DetailPanel>}
   </section>
 }
@@ -52,12 +54,27 @@ export function LabResultsPage() {
 }
 
 export function MedicationsPage() {
+  const { patient, status: authStatus } = useAuth()
   const [tab, setTab] = useState('active')
-  const [taken, setTaken] = useState({})
+  const [medications, setMedications] = useState([])
   const [selected, setSelected] = useState(null)
-  return <section><HealthHeader eyebrow="Local presentation state" title="Medications" description="Synthetic schedules. Taken/pending choices remain only in this browser view." />
-    <div className="filter-row">{['active', 'completed'].map((item) => <button className={`filter-chip${tab === item ? ' active' : ''}`} key={item} onClick={() => setTab(item)}>{item === 'active' ? "Today's Schedule" : 'Completed'}</button>)}</div>
-    <div className="medication-list">{presentationMedications.filter((item) => item.status === tab).map((item) => <article className="card medication-card" key={item.id}><span className="health-record-icon"><Pill aria-hidden="true" /></span><div><h2>{item.name}</h2><p>{item.dosage} · {item.schedule}</p></div><span className="med-stock">{item.stock}</span>{tab === 'active' && <button className={`med-toggle${taken[item.id] ? ' taken' : ''}`} type="button" aria-pressed={!!taken[item.id]} onClick={() => setTaken((current) => ({ ...current, [item.id]: !current[item.id] }))}>{taken[item.id] ? <><CheckCircle2 aria-hidden="true" /> Taken</> : 'Pending'}</button>}<button className="button button--secondary" onClick={() => setSelected(item)}>Details</button></article>)}</div>
-    {selected && <DetailPanel title={selected.name} onClose={() => setSelected(null)}><p>{selected.instructions}</p><p>The taken/pending control is a temporary presentation interaction and is not saved as a medical record.</p></DetailPanel>}
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    if (!patient?.id) { if (authStatus !== 'loading') setError('Unable to load medications. Please try again.'); setLoading(false); return }
+    try { setMedications(await presentationRepository.listMedications(patient.id)) }
+    catch { setError('Unable to load medications. Please try again.') }
+    finally { setLoading(false) }
+  }, [authStatus, patient?.id])
+  useEffect(() => { void load() }, [load])
+  if (loading || authStatus === 'loading') return <section><h1>Medications</h1><p role="status">Loading medications…</p></section>
+  if (error) return <section className="card empty-state"><h1>Medications</h1><p role="alert">{error}</p><button className="button button--secondary" type="button" onClick={() => void load()}>Try again</button></section>
+  const visible = medications.filter((item) => tab === 'active' ? item.status === 'active' : item.status !== 'active')
+  return <section><HealthHeader presentation={false} eyebrow="Your medication records" title="Medications" description="Read-only medication information associated with your EasyCare patient account." />
+    <div className="filter-row">{['active', 'history'].map((item) => <button className={`filter-chip${tab === item ? ' active' : ''}`} key={item} onClick={() => setTab(item)}>{item === 'active' ? 'Active Medications' : 'Medication History'}</button>)}</div>
+    <div className="medication-list">{visible.map((item) => <article className="card medication-card" key={item.id}><span className="health-record-icon"><Pill aria-hidden="true" /></span><div><h2>{item.name}</h2><p>{item.dosage || 'Dose not recorded'} · {item.frequency || 'Frequency not recorded'}</p><small>{item.instructions || 'No instructions recorded'}</small></div><span className={`status-badge status-${item.status}`}>{item.status.replace('_', ' ')}</span><button className="button button--secondary" type="button" onClick={() => setSelected(item)}>Details</button></article>)}</div>
+    {!visible.length && <div className="card empty-state"><Pill aria-hidden="true" /><h2>No medications found.</h2></div>}
+    {selected && <DetailPanel title={selected.name} onClose={() => setSelected(null)}><p>{selected.instructions || 'No instructions recorded.'}</p><dl><div><dt>Dosage</dt><dd>{selected.dosage || 'Not recorded'}</dd></div><div><dt>Frequency</dt><dd>{selected.frequency || 'Not recorded'}</dd></div><div><dt>Status</dt><dd>{selected.status}</dd></div></dl></DetailPanel>}
   </section>
 }

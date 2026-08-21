@@ -78,7 +78,14 @@ export function submitRegistration(formValues) {
 
 export async function registerPatient(formValues, client = supabase) {
   const validation = submitRegistration(formValues)
-  if (!validation.success || !client) return validation
+  if (!validation.success) return validation
+  if (!client) {
+    return {
+      success: false,
+      errors: {},
+      message: 'Registration service is not configured correctly. Please contact support.',
+    }
+  }
 
   const requestBody = {
     password: formValues.password,

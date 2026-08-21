@@ -111,12 +111,24 @@ describe('repository adapters', () => {
   })
 
   it('keeps Supabase queries in the remote adapter and forbids remote reset', async () => {
-    const result = Promise.resolve({ data: [{ id: 'remote-provider' }], error: null })
-    const select = vi.fn(() => result)
-    const from = vi.fn(() => ({ select }))
+    const rows = [{
+      id: '52000000-0000-4000-8000-000000000001', provider_type: 'doctor', display_name: 'Dr. Synthetic Test',
+      qualification: 'Synthetic qualification', verification_status: 'verified', years_experience: 9,
+      languages: ['my', 'en'], service_area: { hospital: 'Synthetic Clinic', city: 'Yangon' },
+      teleconsult_enabled: true, home_visit_enabled: false, consultation_fee_mmk: 25000, rating_average: '4.80',
+      provider_specialties: [{ is_primary: true, specialties: { name: 'General Practitioner' } }],
+    }]
+    const query = { select: vi.fn(), eq: vi.fn(), then: (resolve) => Promise.resolve({ data: rows, error: null }).then(resolve) }
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query)
+    const from = vi.fn(() => query)
     const repository = createSupabaseRepository({ from })
-    expect(await repository.listDoctors()).toEqual([expect.objectContaining({ id: 'remote-provider', displayName: 'Verified doctor' })])
+    expect(await repository.listDoctors()).toEqual([expect.objectContaining({
+      id: '52000000-0000-4000-8000-000000000001', displayName: 'Dr. Synthetic Test',
+      specialty: 'General Practitioner', consultationFeeMmk: 25000, consultationTypes: ['video', 'voice'],
+    })])
     expect(from).toHaveBeenCalledWith('providers')
+    expect(query.eq).toHaveBeenCalledWith('provider_type', 'doctor')
+    expect(query.eq).toHaveBeenCalledWith('verification_status', 'verified')
     expect(repository.reset).toThrow(/unsupported/)
   })
 

@@ -64,6 +64,27 @@ describe('patient registration validation', () => {
     expect(submitRegistration({ ...validForm, allergies: '', noKnownAllergies: true }).success).toBe(true)
   })
 
+  it.each([
+    ['fullName', 161],
+    ['addressCity', 301],
+    ['emergencyName', 161],
+    ['emergencyRelationship', 81],
+    ['allergies', 1001],
+    ['existingMedicalConditions', 2001],
+    ['currentMedications', 2001],
+  ])('matches the Edge Function maximum for %s', (field, length) => {
+    expectRejected({ [field]: 'x'.repeat(length), noKnownAllergies: false }, field)
+  })
+
+  it('reports missing Supabase configuration instead of claiming registration succeeded', async () => {
+    const result = await registerPatient(validForm, null)
+    expect(result).toEqual({
+      success: false,
+      errors: {},
+      message: 'Registration service is not configured correctly. Please contact support.',
+    })
+  })
+
   it('accepts empty optional medical fields', () => {
     expect(submitRegistration({ ...validForm, existingMedicalConditions: '', currentMedications: '' }).success).toBe(true)
   })

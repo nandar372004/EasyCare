@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -11,6 +11,7 @@ function renderAt(route) {
 }
 
 describe('patient registration route', () => {
+  beforeEach(() => localStorage.clear())
   it('renders directly at /register', () => {
     renderAt('/register')
     expect(screen.getByRole('heading', { name: 'Create your patient profile' })).toBeInTheDocument()
@@ -43,17 +44,19 @@ describe('patient registration route', () => {
     expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument()
   })
 
-  it.each([
-    ['/', 'Welcome to MediBridge AI'],
-    ['/doctors', 'Doctors'],
-    ['/appointments', 'Appointments'],
-    ['/appointments/test-id', 'Appointment Details'],
-    ['/consultations/test-id', 'Consultation Waiting Room'],
-    ['/settings', 'Settings'],
-  ])('keeps existing route %s working', (route, heading) => {
+  it('keeps the landing route working', () => {
+    const route = '/'
     renderAt(route)
-    expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome to MediBridge AI' })).toBeInTheDocument()
   })
+
+  it.each(['/doctors', '/appointments', '/appointments/test-id', '/consultations/test-id', '/settings'])(
+    'protects unauthenticated route %s',
+    (route) => {
+      renderAt(route)
+      expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument()
+    },
+  )
 
   it('retains mobile overflow protections for the registration form', () => {
     const css = readFileSync(join(process.cwd(), 'src/styles/global.css'), 'utf8')

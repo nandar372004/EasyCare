@@ -3,7 +3,7 @@ import { CalendarDays, Camera, CheckCircle2, Clock3, Headphones, MessageSquare, 
 import { Link, useParams } from 'react-router-dom'
 import { presentationRepository } from '../../services/repositories/index.js'
 import { formatPresentationDateTime } from '../../lib/presentationFormatting.js'
-import { CONSULTATION_DEMO_NOTICE, getConsultationEligibility, getCountdown, getDeterministicQueue, SYNTHETIC_CONSULTATION_SUMMARIES } from './consultationDemo.js'
+import { getConsultationEligibility, getCountdown, getDeterministicQueue, SYNTHETIC_CONSULTATION_SUMMARIES } from './consultationDemo.js'
 
 const MODE_LABELS = { video: 'Video consultation', voice: 'Voice consultation', chat: 'Chat consultation' }
 const MODE_ICONS = { video: Video, voice: Phone, chat: MessageSquare }
@@ -44,10 +44,9 @@ export function WaitingRoomGate() {
   const ModeIcon = MODE_ICONS[appointment?.consultationType] ?? Video
 
   if (appointment === undefined) return <section><h1>Consultation Waiting Room</h1><p role="status">Checking appointment access…</p></section>
-  if (!eligibility.eligible) return <section className="card waiting-denied"><ShieldCheck aria-hidden="true" /><span className="eyebrow">Access checked</span><h1>Waiting room unavailable</h1><p>{eligibility.reason}</p><div className="demo-warning"><strong>{CONSULTATION_DEMO_NOTICE}</strong><span>No camera, microphone, recording, or live connection was started.</span></div><Link className="button button--secondary" to={appointment ? `/appointments/${appointment.id}` : '/appointments'}>Back to appointments</Link></section>
+  if (!eligibility.eligible) return <section className="card waiting-denied"><ShieldCheck aria-hidden="true" /><span className="eyebrow">Access checked</span><h1>Waiting room unavailable</h1><p>{eligibility.reason}</p><div className="demo-warning"><span>No camera, microphone, recording, or live connection was started.</span></div><Link className="button button--secondary" to={appointment ? `/appointments/${appointment.id}` : '/appointments'}>Back to appointments</Link></section>
 
   return <section className="consultation-page">
-    <div className="consultation-demo-notice" role="note"><ShieldCheck aria-hidden="true" /><strong>{CONSULTATION_DEMO_NOTICE}</strong></div>
     <header className="page-heading"><div><span className="eyebrow">Eligible appointment</span><h1>Consultation Waiting Room</h1><p>Review your appointment and demo readiness before entering the simulated queue.</p></div><Link className="button button--secondary" to={`/appointments/${appointment.id}`}>Appointment details</Link></header>
 
     <div className="waiting-layout">

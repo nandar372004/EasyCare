@@ -29,13 +29,20 @@ export function validateBooking({ doctor, patientId, slot, consultationType, pay
   if (!doctor?.id) throw new Error('Choose a doctor.')
   if (!patientId) throw new Error('Choose a patient.')
   if (!slot?.id || slot.doctorId !== doctor.id) throw new Error('Choose an available time.')
-  if (slot.consultationType !== consultationType) throw new Error('The selected time does not support this consultation type.')
+  if (!isSlotCompatible(slot, consultationType)) throw new Error('The selected time does not support this consultation type.')
   if (slot.status !== 'available') throw new BookingConflictError()
   if (new Date(slot.startsAt) <= now) throw new Error('Appointment date and time must be in the future.')
-  if (!['video', 'voice', 'chat', 'home_visit'].includes(consultationType)) throw new Error('Choose a consultation type.')
+  if (!['video', 'voice', 'home_visit'].includes(consultationType)) throw new Error('Choose a consultation type.')
   if (!['presentation_card', 'presentation_wallet', 'not_required'].includes(paymentMethod)) throw new Error('Choose a simulated payment method.')
   if (symptoms.length > 2000) throw new Error('Reason for Visit/Symptoms must be 2,000 characters or fewer.')
   return true
+}
+
+export function isSlotCompatible(slot, consultationType) {
+  if (!slot) return false
+  if (consultationType === 'home_visit') return (slot.serviceType ?? slot.consultationType) === 'home_visit'
+  return ['video', 'voice'].includes(consultationType)
+    && (slot.serviceType === 'teleconsultation' || ['video', 'voice'].includes(slot.consultationType))
 }
 
 export function createBookingCode() {

@@ -1,4 +1,3 @@
-export const CONSULTATION_DEMO_NOTICE = 'Presentation Demo — No live doctor or production video service is connected.'
 
 export function getConsultationEligibility(appointment, now = new Date()) {
   if (!appointment) return { eligible: false, reason: 'This appointment was not found or does not belong to the signed-in patient.' }

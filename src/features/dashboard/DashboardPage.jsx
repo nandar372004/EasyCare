@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { presentationRepository } from '../../services/repositories/index.js'
 import { formatPresentationDateTime } from '../../lib/presentationFormatting.js'
 import { useAuth } from '../auth/AuthContext.jsx'
-import { healthOverview, presentationMedications } from '../health/healthPresentationData.js'
+import { healthOverview } from '../health/healthPresentationData.js'
 
 export function DashboardPage() {
   const auth = useAuth()
@@ -13,6 +13,8 @@ export function DashboardPage() {
   const [suggestions, setSuggestions] = useState([])
   const [careEvents, setCareEvents] = useState([])
   const [dashboardStatus, setDashboardStatus] = useState('loading')
+  const [medications, setMedications] = useState([])
+  const [medicationStatus, setMedicationStatus] = useState('loading')
 
   useEffect(() => {
     let cancelled = false
@@ -40,12 +42,22 @@ export function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    if (!auth.patient?.id) { setMedicationStatus(auth.status === 'loading' ? 'loading' : 'error'); return undefined }
+    setMedicationStatus('loading')
+    presentationRepository.listMedications(auth.patient.id)
+      .then((rows) => { if (!cancelled) { setMedications(rows); setMedicationStatus('ready') } })
+      .catch(() => { if (!cancelled) { setMedications([]); setMedicationStatus('error') } })
+    return () => { cancelled = true }
+  }, [auth.patient?.id, auth.status])
+
   const greetingName = auth.patient?.full_name ?? 'EasyCare Patient'
   const appointmentDate = nextAppointment ? new Date(nextAppointment.scheduledAt) : null
   const appointmentMonth = appointmentDate?.toLocaleDateString('en-US', { month: 'short', timeZone: 'Asia/Yangon' })
   const appointmentDay = appointmentDate?.toLocaleDateString('en-US', { day: '2-digit', timeZone: 'Asia/Yangon' })
   const appointmentWeekday = appointmentDate?.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Yangon' })
-  const activeMedications = presentationMedications.filter((item) => item.status === 'active').slice(0, 3)
+  const activeMedications = medications.filter((item) => item.status === 'active').slice(0, 3)
 
   return (
     <div className="dashboard-page phase11-dashboard">
@@ -53,11 +65,6 @@ export function DashboardPage() {
       {dashboardStatus === 'loading' && (
         <div className="dashboard-state" role="status">
           <span className="loading-spinner" aria-hidden="true" />Loading your dashboard…
-        </div>
-      )}
-      {dashboardStatus === 'error' && (
-        <div className="dashboard-state dashboard-state--error" role="alert">
-          We could not load your dashboard. Please refresh and try again.
         </div>
       )}
 
@@ -208,20 +215,20 @@ export function DashboardPage() {
             <h2>Medication Today</h2>
             <Link to="/medications">View All</Link>
           </div>
-          {activeMedications.length > 0 ? (
+          {medicationStatus === 'loading' ? <p role="status">Loading medications…</p> : activeMedications.length > 0 ? (
             <ul className="medication-list">
               {activeMedications.map((item) => (
                 <li key={item.id} className="medication-item">
                   <Pill aria-hidden="true" />
                   <div>
                     <strong>{item.name}</strong>
-                    <small>{item.schedule}</small>
+                    <small>{item.dosage}{item.frequency ? ` · ${item.frequency}` : ''}</small>
                   </div>
                   <span className="status-badge status-active">Active</span>
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : medicationStatus === 'error' ? <div className="dashboard-empty"><p>Unable to load medications.</p></div> : (
             <div className="dashboard-empty">
               <p>No active medications.</p>
             </div>

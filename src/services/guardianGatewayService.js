@@ -1,8 +1,10 @@
 import { supabase } from '../lib/supabase.js'
 import { createSafeFallback, resolveGuardianResponse, screenGuardianInput } from '../features/guardian/guardianSafety.js'
+import { HACKATHON_PROTOTYPE } from '../lib/prototypeMode.js'
 
 export async function requestGuardianGuidance(input, client = supabase) {
   const deterministic = screenGuardianInput(input)
+  if (HACKATHON_PROTOTYPE && client === supabase) return deterministic
   if (!client) return deterministic
 
   try {
@@ -13,4 +15,3 @@ export async function requestGuardianGuidance(input, client = supabase) {
     return deterministic.sourceMode === 'fallback' ? createSafeFallback() : deterministic
   }
 }
-
