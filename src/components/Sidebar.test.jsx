@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { LocalizationProvider } from '../features/localization/LocalizationContext.jsx'
@@ -45,9 +45,15 @@ describe('sidebar family navigation', () => {
     expect(labelsIn(document.querySelectorAll('.sidebar-group')[0])).toEqual(['Dashboard', 'My Care Plan', 'My Family', 'Care Circle'])
     expect(labelsIn(document.querySelectorAll('.sidebar-group')[1])).toEqual(['Book Care', 'Appointments', 'Home Care', 'AI Health Guardian'])
     expect(labelsIn(document.querySelectorAll('.sidebar-group')[2])).toEqual(['Health Records', 'Medical Documents', 'Prescriptions', 'Medications'])
-    expect(screen.queryByRole('navigation', { name: 'Mobile navigation' }).querySelector('a[href="/family"], a[href="/family/overview"]')).toBeNull()
     const mobileLinks = within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getAllByRole('link')
     expect(mobileLinks.slice(0, 3).map((link) => link.getAttribute('href'))).toEqual(['/dashboard', '/my-care-plan', '/appointments'])
+    expect(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).queryByRole('link', { name: 'My Family' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'All tabs' }))
+    const mobilePanel = screen.getByRole('dialog', { name: 'All tabs' })
+    const panelLinks = within(mobilePanel).getAllByRole('link')
+    expect(panelLinks).toHaveLength(primaryNavigation.length)
+    expect(within(mobilePanel).getByRole('link', { name: 'My Family' })).toHaveAttribute('href', '/family/overview')
+    expect(within(mobilePanel).getByRole('link', { name: 'Care Circle' })).toHaveAttribute('href', '/family')
   })
 
   it('activates only My Family on the family health overview', () => {

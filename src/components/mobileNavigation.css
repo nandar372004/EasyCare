@@ -1,0 +1,58 @@
+.bottom-nav-all {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #687d99;
+  font-size: .67rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (max-width: 900px) { .bottom-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.bottom-nav-all.active { color: var(--primary); }
+.bottom-nav-all svg { width: 21px; height: 21px; }
+.mobile-nav-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(13, 30, 46, .48);
+  backdrop-filter: blur(3px);
+}
+.mobile-nav-panel {
+  width: min(100%, 720px);
+  max-height: min(78dvh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  border: 1px solid #d9e4ed;
+  border-radius: 22px 22px 14px 14px;
+  background: #fff;
+  box-shadow: 0 16px 50px rgba(9, 32, 54, .25);
+}
+.mobile-nav-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.mobile-nav-panel-header h2 { margin: 0; color: #18364d; font-size: 1.1rem; }
+.mobile-nav-close { display: grid; flex: 0 0 42px; place-items: center; width: 42px; height: 42px; border: 1px solid #d9e4ed; border-radius: 50%; background: #fff; color: #34566c; cursor: pointer; }
+.mobile-nav-close svg { width: 19px; height: 19px; }
+.mobile-nav-groups { display: grid; gap: 16px; }
+.mobile-nav-group h3 { margin: 0 0 7px; color: #62798b; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.mobile-nav-group > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mobile-nav-group a { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 48px; padding: 9px 11px; border: 1px solid #e2eaf0; border-radius: 12px; color: #29475b; background: #fbfdfe; font-size: .86rem; font-weight: 650; line-height: 1.3; text-decoration: none; overflow-wrap: anywhere; }
+.mobile-nav-group a.active { border-color: #9ccde4; color: #086b9b; background: #eef8fc; }
+.mobile-nav-group a svg { flex: 0 0 19px; width: 19px; height: 19px; color: #3484a4; }
+@media (max-width: 560px) {
+  .bottom-nav-all { font-size: .58rem; }
+  .bottom-nav-all span { max-width: 68px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-nav-backdrop { padding: 8px; }
+  .mobile-nav-panel { padding: 15px 13px; padding-bottom: max(15px, env(safe-area-inset-bottom)); }
+  .mobile-nav-group > div { grid-template-columns: minmax(0, 1fr); }
+}
