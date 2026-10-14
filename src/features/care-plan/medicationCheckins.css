@@ -1,0 +1,20 @@
+.care-medication-date{display:flex;align-items:baseline;gap:8px;padding:2px 3px;color:#506274;font-size:.82rem}
+.care-medication-date strong{color:var(--navy);font-size:.9rem}
+.care-medication-checkins{grid-column:1/-1;display:grid;gap:5px;padding:2px 4px 4px}
+.care-medication-today{color:#56697c;font-size:.76rem;font-weight:700}
+.care-medication-occurrence{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;padding:3px 0;border-top:1px solid #edf1f5;color:#33485d;font-size:.82rem}
+.care-medication-checkin-done{color:#31704a;font-size:.8rem;font-weight:800}
+.care-medication-checkin-unavailable{color:#6b7784;font-size:.78rem}
+.care-dose-status--active{background:#e4f4e9;color:#31704a}
+.care-dashboard-card--medications .care-dose-main,
+.care-dashboard-card--medications .care-dose-main:link,
+.care-dashboard-card--medications .care-dose-main:visited,
+.care-dashboard-card--medications .care-dose-main:hover,
+.care-dashboard-card--medications .care-dose-main:focus,
+.care-dashboard-card--medications .care-dose-main:active,
+.care-dashboard-card--medications .care-dose-main *,
+.care-dashboard-card--medications .care-dose-done,
+.care-dashboard-card--medications .care-dose-done:hover,
+.care-dashboard-card--medications .care-dose-done:focus,
+.care-dashboard-card--medications .care-dose-done:active{ text-decoration:none; }
+@media(max-width:380px){.care-medication-occurrence{align-items:flex-start;flex-direction:column;padding:7px 0}.care-medication-occurrence .care-dose-done{align-self:flex-end}}

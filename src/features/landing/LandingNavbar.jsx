@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, Menu, X } from 'lucide-react'
 import { Brand } from '../../components/Brand.jsx'
+import { useOptionalLocalization } from '../localization/LocalizationContext.jsx'
+import { useLandingTranslation } from './useLandingTranslation.js'
 
 const navigation = [
   ['Home', 'home'], ['Services', 'services'], ['How It Works', 'how-it-works'],
   ['About EasyCare', 'about'], ['For Families', 'families'], ['Contact Us', 'contact'],
 ]
 
-export function LandingNavbar({ activePage }) {
+export function LandingNavbar({ activePage, localized = false }) {
+  const localization = useOptionalLocalization()
+  const translate = useLandingTranslation()
+  const t = localized ? translate : text => text
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(activePage ?? 'home')
   const location = useLocation()
@@ -45,8 +50,8 @@ export function LandingNavbar({ activePage }) {
   }
 
   const links = navigation.map(([label, id]) => (
-    <button key={id} type="button" className={(activePage ?? active) === id ? 'active' : ''} onClick={() => goTo(id)}>{label}</button>
+    <button key={id} type="button" className={(activePage ?? active) === id ? 'active' : ''} onClick={() => goTo(id)}>{t(label)}</button>
   ))
 
-  return <header className="ec-nav"><div className="ec-nav-inner"><button className="ec-logo-button" type="button" onClick={() => goTo('home')} aria-label="EasyCare home"><Brand /></button><nav className="ec-desktop-nav" aria-label="Main navigation">{links}</nav><div className="ec-nav-actions"><button className="ec-language" type="button" aria-label="Select language">EN <ChevronDown /></button><Link className="ec-button ec-button-outline ec-signin" to="/login">Sign In</Link><Link className="ec-button ec-button-primary ec-find" to="/doctors">Find Care</Link><button className="ec-menu-toggle" type="button" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button></div></div>{open && <nav className="ec-mobile-nav" aria-label="Mobile navigation">{links}<Link to="/login">Sign In</Link><Link className="ec-mobile-find" to="/doctors">Find Care</Link></nav>}</header>
+  return <header className="ec-nav"><div className="ec-nav-inner"><button className="ec-logo-button" type="button" onClick={() => goTo('home')} aria-label={t('EasyCare home')}><Brand /></button><nav className="ec-desktop-nav" aria-label={t('Main navigation')}>{links}</nav><div className="ec-nav-actions">{localized && localization ? <div className="ec-landing-language" role="group" aria-label={t('Select language')}><button type="button" lang="my" aria-label="Myanmar" aria-pressed={localization.language === 'my'} onClick={() => localization.setLanguage('my')}>မြန်မာ</button><span aria-hidden="true">|</span><button type="button" lang="en" aria-pressed={localization.language === 'en'} onClick={() => localization.setLanguage('en')}>English</button></div> : <button className="ec-language" type="button" aria-label="Select language">EN <ChevronDown /></button>}<Link className="ec-button ec-button-outline ec-signin" to="/login">{t('Sign In')}</Link><Link className="ec-button ec-button-primary ec-find" to="/doctors">{t('Find Care')}</Link><button className="ec-menu-toggle" type="button" aria-label={t(open ? 'Close menu' : 'Open menu')} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button></div></div>{open && <nav className="ec-mobile-nav" aria-label={t('Mobile navigation')}>{links}<Link to="/login">{t('Sign In')}</Link><Link className="ec-mobile-find" to="/doctors">{t('Find Care')}</Link></nav>}</header>
 }

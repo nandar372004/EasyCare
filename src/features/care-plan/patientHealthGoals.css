@@ -1,0 +1,21 @@
+.patient-health-goals{display:grid;gap:8px;min-width:0}
+.patient-health-goal-empty{margin:0;padding:4px 2px;color:#667085;font-size:.9rem}
+.patient-health-goal-list{display:grid;gap:4px}
+.patient-health-goal{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:3px 5px;border:1px solid transparent;border-radius:8px;transition:background .15s ease,border-color .15s ease}
+.patient-health-goal:hover{background:rgba(255,255,255,.7);border-color:#e4e8ee}
+.patient-health-goal-check{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:38px;color:#263649;cursor:pointer}
+.patient-health-goal-check input{flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:0;accent-color:#27785b;cursor:pointer}
+.patient-health-goal-check span{min-width:0;overflow-wrap:anywhere}
+.patient-health-goal.is-completed .patient-health-goal-check span{color:#8a929d;text-decoration:line-through}
+.patient-health-goal-delete{display:grid;flex:0 0 36px;place-items:center;width:36px;min-width:36px;min-height:36px;padding:0;border:0;border-radius:7px;background:transparent;color:#87909a;cursor:pointer}
+.patient-health-goal-delete:hover{background:#f2f4f7;color:#68727e}
+.patient-health-goal-delete svg{width:16px;height:16px}
+.patient-health-goal-add,.patient-health-goal-cancel{justify-self:start;min-height:36px!important;padding:5px 7px;border:0;border-radius:7px;background:transparent;color:#526477;font-size:.87rem;cursor:pointer;text-decoration:none}
+.patient-health-goal-add:hover,.patient-health-goal-cancel:hover{background:rgba(255,255,255,.72);color:#263649;text-decoration:none}
+.patient-health-goal-add:focus-visible,.patient-health-goal-cancel:focus-visible,.patient-health-goal-delete:focus-visible,.patient-health-goal-save:focus-visible,.patient-health-goal-check input:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.patient-health-goal-add-form{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}
+.patient-health-goal-add-form input{flex:1 1 170px;width:100%;min-width:0;min-height:40px;padding:7px 10px;border:1px solid #d5dce4;border-radius:8px;background:#fff;color:#263649;font:inherit;font-size:.88rem}
+.patient-health-goal-save{min-height:36px!important;padding:5px 10px;border:1px solid #d5dce4;border-radius:7px;background:#fff;color:#263649;font-size:.84rem;font-weight:650;cursor:pointer}
+.patient-health-goal-save:disabled,.patient-health-goal-delete:disabled{cursor:wait;opacity:.55}
+.patient-health-goal-error{margin:0;color:#9c3d36;font-size:.82rem}
+@media(max-width:420px){.patient-health-goal{gap:5px;padding:3px 2px}.patient-health-goal-check{gap:8px}.patient-health-goal-add-form{align-items:stretch}.patient-health-goal-add-form input{flex-basis:100%}.patient-health-goal-save,.patient-health-goal-cancel{min-height:40px!important}}

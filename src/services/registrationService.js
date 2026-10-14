@@ -52,20 +52,6 @@ export function submitRegistration(formValues) {
     profile: {
       fullName: data.fullName,
       dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      addressCity: data.addressCity,
-    },
-    emergencyContact: {
-      name: data.emergencyName,
-      relationship: data.emergencyRelationship,
-      phoneNumber: normalizeMyanmarPhone(data.emergencyPhoneNumber),
-    },
-    medicalProfile: {
-      bloodType: data.bloodType,
-      allergies: data.allergies,
-      noKnownAllergies: data.noKnownAllergies,
-      existingMedicalConditions: data.existingMedicalConditions,
-      currentMedications: data.currentMedications,
     },
     consent: {
       termsAccepted: data.termsAccepted,

@@ -1,0 +1,18 @@
+.my-care-page.care-dashboard a,
+.my-care-page.care-dashboard a:hover,
+.my-care-page.care-dashboard a:focus,
+.my-care-page.care-dashboard a:active,
+.my-care-page.care-dashboard a:visited,
+.my-care-page.care-dashboard a *,
+.my-care-page.care-dashboard button,
+.my-care-page.care-dashboard [role="button"],
+.my-care-page.care-dashboard [class*="underline"] {
+  text-decoration: none;
+}
+
+.my-care-page.care-dashboard a:focus-visible,
+.my-care-page.care-dashboard button:focus-visible,
+.my-care-page.care-dashboard [role="button"]:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}

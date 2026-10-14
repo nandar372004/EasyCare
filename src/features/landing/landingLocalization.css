@@ -1,0 +1,37 @@
+/* Landing-only adjustments for Myanmar shaping and longer translated labels. */
+.ec-landing-page .ec-landing-language{display:flex;align-items:center;gap:4px;padding:3px;border:1px solid #bed3ee;border-radius:9px;background:#fff;flex-shrink:0}
+.ec-landing-language button{min-height:36px;padding:4px 7px;border:0;border-radius:6px;background:transparent;color:var(--ec-navy);font-size:12px;cursor:pointer}
+.ec-landing-language button[aria-pressed="true"]{background:#eff6ff;color:var(--ec-blue);font-weight:700}
+.ec-landing-language span{color:#bed3ee}
+.ec-landing-language button:focus-visible{outline:2px solid var(--ec-blue);outline-offset:2px}
+.ec-landing-page[lang="my"] :is(h1,h2,h3,p,li,strong,small,button,a,span){letter-spacing:normal;line-height:1.8;overflow-wrap:break-word}
+.ec-landing-page[lang="my"] .ec-hero-copy h1{font-size:clamp(1.8rem,2.7vw,2.8rem);line-height:1.65}
+.ec-landing-page[lang="my"] .ec-hero-headline span{line-height:1.8}
+.ec-landing-page[lang="my"] .ec-button{padding-top:8px;padding-bottom:8px;max-width:100%;text-align:center;white-space:normal}
+.ec-landing-page[lang="my"] .ec-hero-actions{flex-wrap:wrap}
+.ec-landing-page[lang="my"] .ec-service-card h3{font-size:.95rem;min-height:0}
+.ec-landing-page[lang="my"] .ec-service-card p{min-height:0;font-size:.82rem}
+.ec-landing-page[lang="my"] :is(.ec-service-card,.ec-step,.ec-family-copy,.ec-coordinator-copy,.ec-coordinator-actions){min-width:0}
+.ec-landing-page[lang="my"] :is(.ec-button svg,.ec-family li svg,.ec-coordinator li svg){flex-shrink:0}
+.ec-landing-page[lang="my"] .ec-dashboard{height:auto;min-height:410px}
+.ec-landing-page[lang="my"] .ec-dashboard aside>div{height:auto;min-height:35px;padding:6px;font-size:.65rem}
+.ec-landing-page[lang="my"] .ec-dashboard :is(small,strong,span,p,i){font-size:.72rem}
+.ec-landing-page[lang="my"] .ec-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ec-landing-page[lang="my"] .ec-dash-lower{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:1121px){.ec-landing-page[lang="my"] .ec-nav-inner{gap:16px}.ec-landing-page[lang="my"] .ec-desktop-nav{gap:0}.ec-landing-page[lang="my"] .ec-desktop-nav button{padding:4px 8px;font-size:.75rem}.ec-landing-page[lang="my"] .ec-nav-actions{gap:8px}.ec-landing-page[lang="my"] .ec-nav-actions .ec-button{padding-left:12px;padding-right:12px;font-size:.8rem}}
+@media(max-width:760px){.ec-landing-page .ec-nav-inner{gap:8px}.ec-landing-page .ec-nav-actions{gap:8px}.ec-landing-page[lang="my"] .ec-hero-copy h1{font-size:clamp(1.8rem,6vw,2.6rem)}}
+@media(max-width:480px){.ec-landing-page .ec-logo-button img{width:100px}.ec-landing-page .ec-menu-toggle{width:36px;height:36px}.ec-landing-page .ec-landing-language button{padding:4px 5px;font-size:11px}.ec-landing-page[lang="my"] .ec-dash-lower{grid-template-columns:1fr}}
+.ec-localized-public[lang="my"] :is(b,em,blockquote,label,input,select,textarea){letter-spacing:normal;line-height:1.8;overflow-wrap:break-word}
+.ec-localized-public[lang="my"] :is(.ec-services-hero,.ec-contact-hero){height:auto;min-height:298px}
+.ec-localized-public[lang="my"] :is(.ec-services-hero-copy,.ec-contact-hero>div){padding-bottom:48px}
+.ec-localized-public[lang="my"] :is(.ec-services-hero h1,.ec-contact-hero h1,.ec-about-hero h1,.ec-families-hero h1){font-size:clamp(1.8rem,2.7vw,2.8rem);line-height:1.65}
+.ec-localized-public[lang="my"] :is(article,section>div,.ec-contact-field,.ec-contact-options article span){min-width:0}
+.ec-localized-public[lang="my"] :is(.ec-services-card h2,.ec-journey-card h2){min-height:0;font-size:1rem}
+.ec-localized-public[lang="my"] :is(.ec-services-card p,.ec-journey-card>p){min-height:0;font-size:.82rem}
+.ec-localized-public[lang="my"] :is(.ec-services-card li svg,.ec-guidance-copy li svg,.ec-contact-privacy svg,.ec-contact-success svg){flex-shrink:0}
+.ec-localized-public[lang="my"] :is(.ec-guidance-copy>div,.ec-about-cta,.ec-how-cta>div:last-child){flex-wrap:wrap}
+.ec-localized-public[lang="my"] .ec-contact-hero>div>div{flex-wrap:wrap;gap:16px}
+.ec-localized-public[lang="my"] .ec-contact-hero article i{flex-shrink:0}
+.ec-localized-public[lang="my"] :is(.ec-contact-field,.ec-contact-form>p,.ec-contact-options article b,.ec-contact-options article strong,.ec-contact-options article small,.ec-contact-hero article b,.ec-contact-hero article small,.ec-contact-privacy,.ec-contact-field small,.ec-contact-success,.ec-public-footer p,.ec-public-footer b,.ec-public-footer a,.ec-public-footer span,.ec-public-footer>small){font-size:.78rem}
+.ec-localized-public[lang="my"] .ec-contact-options article span{overflow-wrap:anywhere}
+@media(max-width:480px){.ec-localized-public[lang="my"] :is(.ec-services-hero h1,.ec-contact-hero h1,.ec-about-hero h1,.ec-families-hero h1){font-size:1.8rem}.ec-localized-public[lang="my"] .ec-contact-hero>div>div{grid-template-columns:1fr}}

@@ -1,0 +1,188 @@
+/* Compact, independent stacks for the selected member's detail cards. */
+.family-health-page { gap: 14px; }
+.family-health-page .card.family-health-section,
+.family-health-page .family-selected-summary {
+  border: 1px solid #e4edf5;
+  border-radius: 18px;
+  box-shadow: 0 7px 22px rgba(30, 69, 101, .055);
+}
+.family-selected-summary {
+  grid-template-columns: minmax(190px, .75fr) minmax(0, 1.6fr);
+  gap: 16px;
+  padding: 16px 18px;
+}
+.family-selected-person { gap: 11px; }
+.family-selected-avatar { flex-basis: 52px; width: 52px; height: 52px; font-size: 1rem; }
+.family-selected-person h2 { font-size: 1.18rem; }
+.family-access-chip-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.family-access-chip {
+  min-width: 0;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 0 6px;
+  padding: 6px 8px;
+  border-color: #e1edf5;
+  font-size: .73rem;
+  line-height: 1.2;
+}
+.family-access-chip>span { width: 18px; height: 18px; font-size: .7rem; }
+.family-access-chip small { grid-column: 2; overflow-wrap: anywhere; font-size: .64rem; }
+
+.family-health-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+.family-health-column {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+.family-health-page .family-health-section { align-self: start; min-width: 0; padding: 18px; }
+.family-health-page .family-health-section .section-title { gap: 9px; margin-bottom: 10px; }
+.family-health-page .family-health-section .section-title>svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  color: var(--primary-dark);
+}
+.family-health-page .family-health-section .section-title h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+.family-module-list { gap: 7px; }
+.family-module-list>li {
+  gap: 4px;
+  padding: 9px 10px;
+  border-color: #e8f0f6;
+  border-radius: 11px;
+}
+.family-module-actions { gap: 7px; margin-top: 4px; }
+.family-module-actions .button { min-height: 38px; padding: 8px 12px; font-size: .82rem; }
+.family-care-plan-summary { gap: 7px; }
+.family-care-plan-summary>p {
+  padding: 8px 9px;
+  border: 1px solid #e8f1f7;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #f7fbff, #fff);
+  font-size: .86rem;
+}
+.family-health-page .family-care-plan-summary h3 { margin: 0 0 .35rem; color: var(--navy); font-size: 1rem; }
+.family-patient-care-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.family-patient-care-summary>p {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e0edf5;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #f4faff, #fff);
+}
+.family-patient-care-summary>p strong {
+  color: #526b7e;
+  font-size: .72rem;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+.family-patient-care-summary>p span { color: var(--navy); font-size: .9rem; font-weight: 750; }
+.family-patient-care-readonly>.button { width: max-content; min-height: 40px; margin-top: 2px; }
+.family-health-page .dashboard-empty,
+.family-health-page .dashboard-compact-state {
+  margin: 4px 0 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #f6faff;
+  font-size: .84rem;
+}
+.family-record-details-toggle { font-size: .8rem; }
+.family-presentation-record-list { gap: 10px; margin-bottom: 0; }
+.family-presentation-record-list > .family-presentation-record {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d9edf8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fafdff, #fff 70%);
+  box-shadow: 0 5px 15px rgba(10, 107, 153, .055);
+  overflow-wrap: anywhere;
+}
+.family-presentation-record-heading { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.family-presentation-record-heading > svg { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 2px; color: var(--primary-dark); }
+.family-presentation-record-heading > div { display: grid; gap: 2px; min-width: 0; }
+.family-presentation-record-heading strong { color: var(--navy); font-size: .98rem; line-height: 1.3; }
+.family-presentation-record-heading span { color: var(--muted); font-size: .78rem; }
+.family-presentation-record-reading { display: grid; gap: 2px; padding: 9px 10px; border: 1px solid #e2eef5; border-radius: 11px; background: #f5fbff; }
+.family-presentation-record-reading span,
+.family-presentation-record-facts small { color: #72849a; font-size: .7rem; font-weight: 750; }
+.family-presentation-record-reading strong { color: var(--navy); font-size: 1.08rem; }
+.family-presentation-record-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.family-presentation-record-facts > span { display: grid; align-content: start; gap: 3px; min-width: 0; }
+.family-presentation-record-facts strong { color: var(--navy); font-size: .82rem; }
+.family-presentation-record-facts .family-presentation-record-status { width: fit-content; padding: 3px 9px; border-radius: 999px; color: #176b59; background: #e7f7f0; white-space: nowrap; }
+.family-presentation-record-summary { margin: 0; color: #526b7e; font-size: .82rem; line-height: 1.45; }
+.family-presentation-record .family-record-details-toggle { width: fit-content; padding: 0; border: 0; color: var(--primary-dark); background: transparent; font-weight: 750; text-align: left; text-decoration: none; cursor: pointer; }
+.family-presentation-record-detail { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid #e3eef5; }
+.family-presentation-record-detail > div { display: flex; justify-content: space-between; gap: 12px; color: #526b7e; font-size: .79rem; line-height: 1.4; }
+.family-presentation-record-detail > div strong { color: var(--navy); text-align: right; }
+
+@media (max-width: 800px) {
+  .family-selected-summary { grid-template-columns: minmax(165px, .7fr) minmax(0, 1.3fr); gap: 12px; }
+  .family-access-chip-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .family-health-columns { display: flex; flex-direction: column; gap: 12px; }
+  .family-health-column { display: contents; }
+  .family-health-columns>.family-health-column>* { width: 100%; order: 10; }
+  .family-health-columns .family-appointments-card { order: 1; }
+  .family-health-columns .family-care-plan-card { order: 2; }
+  .family-health-columns .family-medications-card { order: 3; }
+  .family-health-columns .family-records-card { order: 4; }
+  .family-health-columns .family-documents-card { order: 5; }
+  .family-selected-summary { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .family-selected-person { align-items: center; }
+  .family-access-chip-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .family-health-page .family-health-section { padding: 15px; }
+  .family-patient-care-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .family-module-actions { display: flex; }
+  .family-module-actions .button { width: auto; }
+}
+@media (max-width: 360px) {
+  .family-access-chip-list,.family-patient-care-summary { grid-template-columns: minmax(0, 1fr); }
+  .family-module-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .family-module-actions .button { width: 100%; }
+  .family-patient-care-readonly>.button { width: 100%; }
+}
+.family-appointment-list { gap: 12px; margin-bottom: 0; }
+.family-appointment-list > .family-appointment-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 15px 16px;
+  border: 1px solid #d9edf8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fafdff, #fff 70%);
+  box-shadow: 0 5px 15px rgba(10, 107, 153, .055);
+  overflow-wrap: normal;
+}
+.family-appointment-doctor { max-width: 100%; color: var(--navy); font-size: 1.1rem; line-height: 1.3; white-space: normal; word-break: normal; overflow-wrap: normal; }
+.family-appointment-specialty { color: var(--muted); font-size: .82rem; }
+.family-appointment-rating { color: #b77912; font-size: .76rem; font-weight: 800; }
+.family-appointment-mode { color: #526b7e; font-size: .9rem; }
+.family-appointment-datetime { color: #526b7e; font-size: .84rem; line-height: 1.4; overflow-wrap: anywhere; }
+.family-appointment-meta { color: #526b7e; font-size: .82rem; line-height: 1.4; overflow-wrap: anywhere; }
+.family-appointment-status { white-space: nowrap; }
+.family-appointment-actions { display: grid; justify-items: start; gap: 7px; margin-top: 3px; }
+.family-appointment-actions .button { min-height: 38px; padding: 8px 12px; font-size: .8rem; }
+.family-appointment-detail { min-width: 0; margin: 2px 0 0; padding-top: 9px; border-top: 1px solid #e3eef5; color: #526b7e; font-size: .83rem; line-height: 1.45; overflow-wrap: anywhere; }

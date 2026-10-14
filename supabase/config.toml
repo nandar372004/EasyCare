@@ -3,3 +3,29 @@ verify_jwt = false
 
 [functions.ai-health-guardian]
 verify_jwt = true
+
+[functions.ai-health-overview]
+verify_jwt = true
+
+[functions.remove-provider-application-document]
+verify_jwt = true
+
+[functions.admin-provider-management]
+verify_jwt = false
+
+[functions.provider-initial-password]
+verify_jwt = true
+
+[functions.medical-document-intake]
+verify_jwt = true
+
+[functions.document-pipeline-test]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.document-pipeline]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.health-world-news]
+verify_jwt = true

@@ -6,6 +6,13 @@ const page = readFileSync(join(process.cwd(), 'src/features/secondary/PatientSet
 const repository = readFileSync(join(process.cwd(), 'src/services/repositories/supabaseRepository.js'), 'utf8')
 
 describe('real patient settings contract', () => {
+  it('removes patient provider-application entry points and the route', () => {
+    expect(page).not.toContain('Apply as Healthcare Provider')
+    expect(page).not.toContain('/provider/apply')
+    const routes = readFileSync(join(process.cwd(),'src/App.jsx'),'utf8')
+    expect(routes).not.toContain('ProviderApplicationPage')
+    expect(routes).not.toContain('path="/provider/apply"')
+  })
   it('loads and updates only the authenticated patient row', () => {
     expect(repository).toContain(".eq('id', patientId).eq('auth_user_id', authUserId)")
     expect(repository).not.toContain("patients').select('*'")
@@ -19,8 +26,11 @@ describe('real patient settings contract', () => {
     expect(page).not.toMatch(/primary_phone\s*:/)
   })
 
-  it('preserves unrelated care preference keys', () => {
-    expect(page).toContain('...(profile?.care_preferences ?? {})')
-    expect(page).toContain("allergies: form.noKnownAllergies ? '' : form.allergies.trim()")
+  it('uses the shared patient-reported intake and retires the care_preferences clinical text editor', () => {
+    expect(page).toContain('<PatientReportedHealthIntake />')
+    expect(page).not.toContain('care_preferences')
+    expect(page).not.toContain('existingMedicalConditions')
+    expect(page).not.toContain('currentMedications')
+    expect(repository).not.toContain('care_preferences, status')
   })
 })

@@ -1,0 +1,13 @@
+.dashboard-language{display:flex;align-items:center;justify-content:flex-end;gap:5px;width:fit-content;margin:0 0 12px auto;padding:3px;border:1px solid #cddced;border-radius:8px;background:#fff}
+.dashboard-language button{min-height:34px;padding:4px 9px;border:0;border-radius:5px;background:transparent;color:#075dcc;font:inherit;font-size:.82rem;cursor:pointer}
+.dashboard-language button[aria-pressed="true"]{font-weight:700;background:#eef6ff}
+.dashboard-language button:focus-visible{outline:2px solid #075dcc;outline-offset:2px}
+.individual-health-dashboard[lang="my"]{min-width:0;overflow-wrap:anywhere}
+.individual-health-dashboard[lang="my"] :is(h1,h2,h3,p,li,dt,dd,strong,small,button,a,span,label,summary,th,td,caption){letter-spacing:normal;line-height:1.8;overflow-wrap:anywhere}
+.individual-health-dashboard[lang="my"] :is(.button,.quick-action-card,.dashboard-language button){height:auto;min-height:42px;max-width:100%;white-space:normal;text-align:center}
+.individual-health-dashboard[lang="my"] :is(.dashboard-hero-copy,.dashboard-command-card,.patient-health-section,.health-trends-chart-panel,.dashboard-quick-actions,.dashboard-quick-actions > *){min-width:0}
+.individual-health-dashboard[lang="my"] .dashboard-hero-actions{flex-wrap:wrap}
+.individual-health-dashboard[lang="my"] .patient-trend-controls select{max-width:100%;white-space:normal}
+.individual-health-dashboard[lang="my"] .patient-health-list li,.individual-health-dashboard[lang="my"] .dashboard-command-card li{min-width:0}
+.individual-health-dashboard[lang="my"] .dashboard-quick-actions{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+@media(max-width:700px){.individual-health-dashboard[lang="my"] .dashboard-hero{grid-template-columns:minmax(0,1fr)}.individual-health-dashboard[lang="my"] .dashboard-hero-visual{display:none}.individual-health-dashboard[lang="my"] .health-trends-header{min-width:0}.individual-health-dashboard[lang="my"] .patient-trend-table{max-width:100%;overflow-x:auto}}

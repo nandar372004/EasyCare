@@ -1,4 +1,5 @@
-// PROTOTYPE_PRICING — Replace with validated production prices later.
+// Presentation copy only. Prices and selectable duration rules come from the
+// authoritative Home Care catalog and quote RPC.
 export const CARE_PACKAGES = [
   {
     id: 'basic-elderly',
@@ -93,44 +94,30 @@ export const CARE_LEVELS = [
     id: 'nurse-aide',
     name: 'Nurse Aide',
     description: 'Trained support for everyday elderly care.',
-    suitableFor: ['Basic Elderly Care'],
     includes: ['Feeding', 'Hygiene', 'Mobility', 'Medication reminders', 'Companionship'],
-    pricePerDay: 36000,
   },
   {
     id: 'skilled-nurse-aide',
     name: 'Skilled Nurse Aide',
     description: 'Experienced support for patients requiring additional healthcare assistance.',
-    suitableFor: ['Skilled Elderly Care', 'Post-Hospital Care'],
     includes: ['Health monitoring', 'Medication assistance', 'Recovery support', 'Complex daily care'],
-    pricePerDay: 48000,
     popular: true,
   },
   {
     id: 'special-nurse',
     name: 'Special Nurse',
     description: 'Advanced nursing support for higher-care needs.',
-    suitableFor: ['Medical Care', 'Post-Hospital Care'],
     includes: ['Tube/catheter care', 'Oxygen/nebulization', 'Bedridden care', 'Advanced monitoring'],
-    pricePerDay: 60000,
   },
 ]
 
-export const DURATIONS = [
-  { id: '1-day', label: '1 Day', days: 1 },
-  { id: '3-days', label: '3 Days', days: 3 },
-  { id: '7-days', label: '7 Days', days: 7 },
-  { id: '14-days', label: '14 Days', days: 14 },
-  { id: '30-days', label: '30 Days', days: 30 },
-]
-
-export const PLATFORM_COMMISSION_RATE = 0.17
-
-export function calculateCarePlanPrice(dailyPrice, days) {
-  const total = Math.round(dailyPrice * days)
-  const providerAmount = Math.round(total * (1 - PLATFORM_COMMISSION_RATE))
-  const commission = total - providerAmount
-  return { total, providerAmount, commission }
+export function calculateCarePlanPrice(quote) {
+  const total = Number(quote?.subtotal || 0)
+  return {
+    total,
+    providerAmount: Number(quote?.provider_amount || 0),
+    commission: Number(quote?.commission_amount || 0),
+  }
 }
 
 export function formatMmk(amount) {

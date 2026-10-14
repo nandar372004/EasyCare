@@ -53,6 +53,11 @@ export function resolveSupabaseConfiguration(urlValue, keyValue) {
   return { mode: 'supabase', isConfigured: true, message: '' }
 }
 
+export function shouldDetectSupabaseSessionInUrl(url, params) {
+  return url?.pathname === '/provider/setup'
+    && Boolean(params?.type === 'invite' || params?.access_token || params?.code || params?.error || params?.error_code || params?.error_description)
+}
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
@@ -65,7 +70,7 @@ export const supabase = supabaseConfiguration.isConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: shouldDetectSupabaseSessionInUrl,
       },
     })
   : null

@@ -3,7 +3,7 @@ export function getConsultationEligibility(appointment, now = new Date()) {
   if (!appointment) return { eligible: false, reason: 'This appointment was not found or does not belong to the signed-in patient.' }
   if (appointment.consultationType === 'home_visit') return { eligible: false, reason: 'Home visits do not have online consultation access.' }
   if (['cancelled', 'completed', 'no_show'].includes(appointment.status)) return { eligible: false, reason: `${appointment.status[0].toUpperCase() + appointment.status.slice(1)} appointments cannot enter the waiting room.` }
-  if (!['pending', 'confirmed', 'checked_in'].includes(appointment.status)) return { eligible: false, reason: 'This appointment is not eligible for waiting-room access.' }
+  if (!['pending', 'confirmed', 'rescheduled'].includes(appointment.status)) return { eligible: false, reason: 'This appointment is not eligible for waiting-room access.' }
   if (new Date(appointment.scheduledAt) <= now) return { eligible: false, reason: 'This appointment time has passed.' }
   return { eligible: true, reason: null }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveSupabaseConfiguration, supabase, supabaseConfiguration } from './supabase.js'
+import { resolveSupabaseConfiguration, shouldDetectSupabaseSessionInUrl, supabase, supabaseConfiguration } from './supabase.js'
 
 function syntheticJwt(role) {
   const encode = (value) => btoa(JSON.stringify(value)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
@@ -47,5 +47,12 @@ describe('Supabase browser client preparation', () => {
   it('exports no client when the test environment is unconfigured', () => {
     expect(supabaseConfiguration.mode).toBe('fixture')
     expect(supabase).toBeNull()
+  })
+
+  it('detects invite callbacks only on the provider setup route', () => {
+    expect(shouldDetectSupabaseSessionInUrl(new URL('https://easycare.test/provider/setup'), { type: 'invite', access_token: 'opaque' })).toBe(true)
+    expect(shouldDetectSupabaseSessionInUrl(new URL('https://easycare.test/provider/setup'), { code: 'opaque' })).toBe(true)
+    expect(shouldDetectSupabaseSessionInUrl(new URL('https://easycare.test/login'), { access_token: 'opaque' })).toBe(false)
+    expect(shouldDetectSupabaseSessionInUrl(new URL('https://easycare.test/provider/setup'), {})).toBe(false)
   })
 })

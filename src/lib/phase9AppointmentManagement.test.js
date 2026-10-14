@@ -2,20 +2,28 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20260813000200_phase9_appointment_management.sql'), 'utf8')
+const readProjectFile = (path) => readFileSync(join(process.cwd(), path), 'utf8')
+const page = readProjectFile('src/features/appointments/AppointmentsPage.jsx')
+const fixture = readProjectFile('src/services/repositories/fixtureRepository.js')
+const repository = readProjectFile('src/services/repositories/supabaseRepository.js')
 
-describe('Phase 9 appointment management migration', () => {
-  it('uses authenticated ownership checks, row locks, and future eligibility', () => {
-    expect(sql).toMatch(/p\.profile_id = auth\.uid\(\)/)
-    expect(sql).toMatch(/for update of a/i)
-    expect(sql).toMatch(/starts_at > statement_timestamp\(\)/)
+describe('current appointment management contract', () => {
+  it('keeps real-mode cancel and reschedule controls unavailable until supported RPCs exist', () => {
+    expect(page).toContain("const allowLifecycle = presentationRepository.mode !== 'supabase'")
+    expect(page).toContain('{allowLifecycle && eligible && <button')
+    expect(page).toContain('{allowLifecycle && <button')
+    expect(page).toContain('>Reschedule</button>')
+    expect(page).toContain('>Cancel appointment</button>')
+    expect(repository).toContain("client.rpc('patient_reschedule_appointment'")
+    expect(repository).toContain("client.rpc('patient_cancel_appointment'")
   })
 
-  it('provides replay-safe reschedule and cancellation functions', () => {
-    expect(sql).toMatch(/primary key \(appointment_id, mutation_key, mutation_type\)/)
-    expect(sql).toMatch(/patient_reschedule_appointment/)
-    expect(sql).toMatch(/patient_cancel_appointment/)
-    expect(sql).toMatch(/appointment_rescheduled/)
-    expect(sql).toMatch(/appointment_cancelled/)
+  it('preserves the supported fixture lifecycle and its idempotent event contract', () => {
+    expect(fixture).toContain('async rescheduleAppointment')
+    expect(fixture).toContain('async cancelAppointment')
+    expect(fixture).toContain('mutations.has(mutationId)')
+    expect(fixture).toContain("eventType: 'appointment_rescheduled'")
+    expect(fixture).toContain("eventType: 'appointment_cancelled'")
+    expect(fixture).toContain('isFutureEligibleAppointment')
   })
 })

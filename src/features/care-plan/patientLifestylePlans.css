@@ -1,0 +1,48 @@
+.patient-lifestyle-plans{display:grid;gap:10px;min-width:0;color:#4f5664}
+.lifestyle-plan-list{display:grid;gap:8px;min-width:0}
+.lifestyle-plan{min-width:0;overflow:hidden;border:1px solid rgba(171,101,121,.15);border-radius:12px;background:rgba(255,255,255,.62)}
+.lifestyle-plan-summary{display:flex;align-items:center;gap:9px;min-width:0;min-height:58px;padding:9px 10px;cursor:pointer;list-style:none}
+.lifestyle-plan-summary::-webkit-details-marker{display:none}
+.lifestyle-plan-heading{display:grid;gap:3px;flex:1;min-width:0}
+.lifestyle-plan-heading strong{color:#49313a;font-size:.96rem;overflow-wrap:anywhere}
+.lifestyle-plan-preview{display:-webkit-box;overflow:hidden;color:#725d64;font-size:.78rem;line-height:1.4;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
+.lifestyle-plan-count{flex:none;color:#805f6b;font-size:.72rem;font-weight:700;white-space:nowrap}
+.lifestyle-plan-summary>svg{width:17px;height:17px;flex:none;color:#805f6b;transition:transform .15s ease}
+.lifestyle-plan[open]>.lifestyle-plan-summary>svg{transform:rotate(180deg)}
+.lifestyle-plan-summary:focus-visible,.lifestyle-create:focus-visible,.lifestyle-inline-action:focus-visible,.lifestyle-form button:focus-visible,.lifestyle-resource-form button:focus-visible,.lifestyle-plan-actions button:focus-visible,.lifestyle-resource-actions button:focus-visible,.lifestyle-resource-link:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.lifestyle-plan-content{display:grid;gap:13px;padding:0 10px 12px;border-top:1px solid rgba(171,101,121,.12)}
+.lifestyle-plan-content h3{margin:10px 0 5px;color:#543943;font-size:.82rem}
+.lifestyle-plan-notes p,.lifestyle-muted{margin:0;color:#6f6067;font-size:.82rem;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.lifestyle-category{display:inline-flex;margin-top:8px;padding:4px 8px;border-radius:99px;background:#f8e8ec;color:#80576a;font-size:.7rem;font-weight:700}
+.lifestyle-resources{min-width:0}
+.lifestyle-resource-list{display:grid;gap:7px}
+.lifestyle-resource-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px;padding:6px 7px;border:1px solid #f0e6e9;border-radius:10px;background:#fff}
+.lifestyle-resource-link{display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;color:inherit;text-decoration:none}
+.lifestyle-resource-icon{display:grid;flex:0 0 32px;place-items:center;width:32px;height:32px;border-radius:9px;background:#f9e9ee;color:#966174}
+.lifestyle-resource-icon.is-youtube{background:#fff0f0;color:#d33}
+.lifestyle-resource-icon svg{width:17px;height:17px}
+.lifestyle-resource-copy{display:grid;gap:2px;min-width:0}
+.lifestyle-resource-copy strong{overflow:hidden;color:#503641;font-size:.79rem;text-overflow:ellipsis;white-space:nowrap}
+.lifestyle-resource-copy small{color:#86737b;font-size:.68rem}
+.lifestyle-resource-external{width:14px;height:14px;flex:none;color:#937b84}
+.lifestyle-resource-actions{display:flex;align-items:center;gap:2px}
+.lifestyle-resource-actions button,.lifestyle-plan-actions button,.lifestyle-form-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:6px 9px;border:1px solid #eadde1;border-radius:9px;background:#fff;color:#674b57;font:inherit;font-size:.74rem;font-weight:700;cursor:pointer}
+.lifestyle-resource-actions .lifestyle-icon-button{width:44px;min-width:44px;min-height:44px;padding:0;border-color:transparent;background:transparent;color:#937f87}
+.lifestyle-icon-button svg{width:16px;height:16px}
+.lifestyle-create,.lifestyle-inline-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:7px 10px;border:1px dashed #dfc6ce;border-radius:10px;background:rgba(255,255,255,.62);color:#765766;font:inherit;font-size:.82rem;font-weight:750;cursor:pointer;text-decoration:none}
+.lifestyle-create{width:100%}
+.lifestyle-create svg{width:17px;height:17px}
+.lifestyle-inline-action{margin-top:8px;border:0;background:transparent}
+.lifestyle-empty{margin:0;padding:5px 2px;color:#76656c;font-size:.87rem}
+.lifestyle-form,.lifestyle-resource-form{display:grid;gap:9px;min-width:0;padding:11px;border:1px solid #eadde1;border-radius:11px;background:rgba(255,255,255,.8)}
+.lifestyle-form>label,.lifestyle-resource-form>label{display:grid;gap:4px;min-width:0;color:#725d66;font-size:.74rem;font-weight:700}
+.lifestyle-form input,.lifestyle-form select,.lifestyle-form textarea,.lifestyle-resource-form input{width:100%;min-width:0;min-height:44px;padding:8px 10px;border:1px solid #ded4d8;border-radius:8px;background:#fff;color:#3f3740;font:inherit;font-size:.82rem}
+.lifestyle-form textarea{min-height:90px;resize:vertical;line-height:1.45}
+.lifestyle-form-actions,.lifestyle-plan-actions{display:flex;flex-wrap:wrap;gap:6px}
+.lifestyle-form-actions button:first-child{border-color:#a97c8d;background:#a97c8d;color:#fff}
+.lifestyle-form-actions .lifestyle-secondary,.lifestyle-plan-actions .lifestyle-secondary{background:transparent}
+.lifestyle-error{margin:0;color:#a63737;font-size:.78rem}
+.lifestyle-form button:disabled,.lifestyle-resource-form button:disabled,.lifestyle-plan-actions button:disabled,.lifestyle-resource-actions button:disabled{cursor:wait;opacity:.6}
+.lifestyle-plan-actions{justify-content:flex-end;padding-top:4px;border-top:1px solid #f0e6e9}
+@media(prefers-reduced-motion:reduce){.lifestyle-plan-summary>svg{transition:none}}
+@media(max-width:420px){.lifestyle-plan-summary{gap:6px;padding-inline:8px}.lifestyle-plan-count{font-size:.67rem}.lifestyle-resource-row{grid-template-columns:minmax(0,1fr) auto;padding-inline:5px}.lifestyle-resource-actions button{padding-inline:7px}.lifestyle-form-actions>*{flex:1}}

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Camera, CheckCircle2, Clock3, Headphones, MessageSquare, Mic, Phone, ShieldCheck, Users, Video, Wifi } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { presentationRepository } from '../../services/repositories/index.js'
 import { formatPresentationDateTime } from '../../lib/presentationFormatting.js'
+import { getFamilyPresentationAppointmentById } from '../../data/presentationFamilyAppointments.js'
+import { useAuth } from '../auth/AuthContext.jsx'
 import { getConsultationEligibility, getCountdown, getDeterministicQueue, SYNTHETIC_CONSULTATION_SUMMARIES } from './consultationDemo.js'
 
 const MODE_LABELS = { video: 'Video consultation', voice: 'Voice consultation', chat: 'Chat consultation' }
@@ -16,22 +18,36 @@ const readiness = [
 
 export function WaitingRoomGate() {
   const { id } = useParams()
+  const location = useLocation()
+  const { patient } = useAuth()
   const [appointment, setAppointment] = useState(undefined)
   const [doctor, setDoctor] = useState(null)
   const [now, setNow] = useState(() => new Date())
   const [stage, setStage] = useState('ready')
+  const familyPresentationAppointment = location.state?.easycarePresentationSample === true
+    ? getFamilyPresentationAppointmentById(id) : null
+  const isFamilyPresentationSample = Boolean(familyPresentationAppointment)
 
   useEffect(() => {
     let active = true
     async function load() {
-      const item = await presentationRepository.getAppointment(id)
+      if (!patient?.id) {
+        setAppointment(null)
+        return
+      }
+      if (isFamilyPresentationSample) {
+        setAppointment(familyPresentationAppointment)
+        setDoctor(familyPresentationAppointment.doctor)
+        return
+      }
+      const item = await presentationRepository.getAppointment(id, { patientId: patient.id })
       if (!active) return
       setAppointment(item)
       if (item) setDoctor(await presentationRepository.getDoctor(item.doctorId))
     }
     void load()
     return () => { active = false }
-  }, [id])
+  }, [id, patient?.id, isFamilyPresentationSample])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)

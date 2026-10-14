@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { CalendarDays, Home, MessageSquare, Stethoscope, UserRound } from 'lucide-react'
+import { CalendarDays, ClipboardList, Home, MessageSquare, Stethoscope, UserRound } from 'lucide-react'
 import { useLocalization } from '../features/localization/LocalizationContext.jsx'
 
 const items = [
   { to: '/dashboard', labelKey: 'nav.home', icon: Home },
+  { to: '/my-care-plan', labelKey: 'nav.myCarePlan', fallbackLabel: 'My Care Plan', icon: ClipboardList },
   { to: '/appointments', labelKey: 'nav.appointments', icon: CalendarDays },
   { to: '/doctors?type=video', labelKey: 'nav.consultations', fallbackLabel: 'Consultations', icon: Stethoscope },
   { to: '/messages', labelKey: 'nav.messages', icon: MessageSquare },

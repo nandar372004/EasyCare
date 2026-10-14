@@ -1,9 +1,10 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock, History, House, MessageSquare, Phone, RefreshCw, Star, Video, XCircle } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { presentationRepository } from '../../services/repositories/index.js'
 import { formatMmk, formatPresentationDateTime } from '../../lib/presentationFormatting.js'
-import { BookingConflictError, canJoinWaitingRoom, createIdempotencyKey, isFutureEligibleAppointment } from '../../services/bookingService.js'
+import { BookingConflictError, canShowConsultationJoin, createIdempotencyKey, isFutureEligibleAppointment, selectAppointments } from '../../services/bookingService.js'
+import './appointmentRefinements.css'
 import { useLocalization } from '../localization/LocalizationContext.jsx'
 import { useAuth } from '../auth/AuthContext.jsx'
 
@@ -12,7 +13,9 @@ const TYPE_ICONS = { video: Video, voice: Phone, chat: MessageSquare, home_visit
 const EVENT_LABELS = { appointment_created: 'Appointment booked', appointment_rescheduled: 'Appointment rescheduled', appointment_cancelled: 'Appointment cancelled', status_changed: 'Status updated' }
 
 export function AppointmentsPage() {
-  return <AppointmentsUiBoundary><AppointmentsPageContent /></AppointmentsUiBoundary>
+  const { id } = useParams()
+  const { patient } = useAuth()
+  return <AppointmentsUiBoundary key={`${patient?.id}:${id || 'list'}`}><AppointmentsPageContent /></AppointmentsUiBoundary>
 }
 
 function AppointmentsPageContent() {
@@ -25,29 +28,37 @@ function AppointmentsPageContent() {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const generation = useRef(0)
+  const tabRefs = useRef([])
+  const filters = ['all', 'upcoming', 'history', 'cancelled']
   const load = useCallback(async () => {
+    const request = ++generation.current
     setLoading(true); setLoadError('')
+    setAppointment(null); setAppointments([])
     if (!patient?.id) { setLoadError('Please sign in again.'); setLoading(false); return }
     try {
       const [appointmentData, doctorRows] = await Promise.all([id ? presentationRepository.getAppointment(id, { patientId: patient.id }) : presentationRepository.listAppointments({ patientId: patient.id }), presentationRepository.listDoctors()])
+      if (request !== generation.current) return
       if (id) setAppointment(appointmentData); else setAppointments(appointmentData)
       setDoctors(doctorRows)
-    } catch { setLoadError('Unable to load appointments.') }
-    finally { setLoading(false) }
+    } catch { if (request === generation.current) setLoadError('Unable to load appointments.') }
+    finally { if (request === generation.current) setLoading(false) }
   }, [id, patient?.id])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(); return () => { generation.current += 1 } }, [load])
   const doctorFor = (item) => item?.doctor ?? doctors.find((doctor) => doctor.id === item?.doctorId)
-  const filtered = useMemo(() => appointments.filter((item) => filter === 'all' || (filter === 'upcoming' ? ['pending', 'confirmed', 'checked_in', 'in_progress'].includes(item.status) : item.status === filter)).sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt)), [appointments, filter])
-  const featuredAppointment = filtered.filter(isFutureEligibleAppointment).sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))[0] ?? filtered[0]
+  const filtered = selectAppointments(appointments, filter)
+  const featuredAppointment = filter === 'all' ? selectAppointments(filtered, 'upcoming')[0] ?? filtered[0] : filtered[0]
   const otherAppointments = featuredAppointment ? filtered.filter((item) => item.id !== featuredAppointment.id) : []
   if (loading) return <section><h1>{id ? 'Appointment Details' : 'Appointments'}</h1><p role="status">Loading appointments…</p></section>
   if (loadError) return <section className="card empty-state"><h1>Unable to load appointments</h1><p role="alert">{loadError}</p><button className="button button--secondary" type="button" onClick={() => void load()}>Try again</button></section>
-  if (id) return appointment ? <AppointmentDetails initialAppointment={appointment} doctor={doctorFor(appointment)} onCanonicalChange={setAppointment} /> : <section className="card empty-state"><h1>{t('appointment.notFound')}</h1><p>{t('appointment.noAccess')}</p><Link className="button button--secondary" to="/appointments">{t('appointment.title')}</Link></section>
+  if (id) return appointment ? <AppointmentDetails key={appointment.id} initialAppointment={appointment} doctor={doctorFor(appointment)} onCanonicalChange={setAppointment} /> : <section className="card empty-state"><h1>{t('appointment.notFound')}</h1><p>{t('appointment.noAccess')}</p><Link className="button button--secondary" to="/appointments">{t('appointment.title')}</Link></section>
   return <section className="appointments-page"><header className="appointments-heading"><div><h1>{t('appointment.title')}</h1><p>{t('appointment.manage')}</p></div></header>
-    <div className="appointment-filters" role="tablist" aria-label="Appointment filters">{['all', 'upcoming', 'completed', 'cancelled'].map((item) => <button type="button" role="tab" aria-selected={filter === item} className={`appointment-filter-tab${filter === item ? ' active' : ''}`} key={item} onClick={() => setFilter(item)}>{item === 'all' ? 'All Appointments' : t(`status.${item}`)}</button>)}</div>
+    <div className="appointment-filters" role="tablist" aria-label="Appointment filters">{filters.map((item, index) => <button id={`appointment-tab-${item}`} aria-controls="appointment-panel" ref={node => { tabRefs.current[index] = node }} tabIndex={filter === item ? 0 : -1} type="button" role="tab" aria-selected={filter === item} className={`appointment-filter-tab${filter === item ? ' active' : ''}`} key={item} onClick={() => setFilter(item)} onKeyDown={event => { let next; if (event.key === 'ArrowRight') next = (index + 1) % filters.length; if (event.key === 'ArrowLeft') next = (index + filters.length - 1) % filters.length; if (event.key === 'Home') next = 0; if (event.key === 'End') next = filters.length - 1; if (next !== undefined) { event.preventDefault(); setFilter(filters[next]); tabRefs.current[next]?.focus() } }}>{item === 'all' ? 'All Appointments' : t(`status.${item}`)}</button>)}</div>
+    <div id="appointment-panel" role="tabpanel" aria-labelledby={`appointment-tab-${filter}`} tabIndex={0}>
     {featuredAppointment && <FeaturedAppointmentCard appointment={featuredAppointment} doctor={doctorFor(featuredAppointment)} photoIndex={doctors.findIndex((doctor) => doctor.id === featuredAppointment.doctorId)} locale={locale} />}
     {!!otherAppointments.length && <section className="other-appointments" aria-labelledby="other-appointments-title"><h2 id="other-appointments-title">Other Appointments</h2><div className="appointment-list">{otherAppointments.map((item) => <AppointmentCard appointment={item} doctor={doctorFor(item)} photoIndex={doctors.findIndex((doctor) => doctor.id === item.doctorId)} locale={locale} key={item.id} />)}</div></section>}
     {!filtered.length && <div className="card empty-state"><CalendarDays aria-hidden="true" /><h2>{t('appointment.noAppointments')}</h2><p>Book a doctor to get started.</p><Link className="button button--primary" to="/doctors">{t('appointment.findDoctor')}</Link></div>}
+    </div>
   </section>
 }
 
@@ -55,7 +66,6 @@ function FeaturedAppointmentCard({ appointment, doctor, photoIndex, locale }) {
   const { t } = useLocalization()
   const Icon = TYPE_ICONS[appointment.consultationType] ?? CalendarDays
   const date = appointmentDateParts(appointment.scheduledAt, locale)
-  const joinable = canJoinWaitingRoom(appointment)
   const eligible = isFutureEligibleAppointment(appointment)
   const allowLifecycle = presentationRepository.mode !== 'supabase'
   return <article className="featured-appointment card">
@@ -75,7 +85,8 @@ function FeaturedAppointmentCard({ appointment, doctor, photoIndex, locale }) {
       <div><dt>Status</dt><dd><AppointmentStatus status={appointment.status} label={t(`status.${appointment.status}`)} /></dd></div>
     </div>
     <div className="featured-actions">
-      {joinable && <Link className="button button--primary" to={`/consultations/${appointment.id}`}>Join Waiting Room</Link>}
+      <AppointmentReference appointment={appointment} />
+      <ConsultationJoinAction appointment={appointment} />
       <Link className="button button--secondary" to={`/appointments/${appointment.id}`}>View Details</Link>
       {allowLifecycle && eligible && <button className="button button--secondary" type="button" onClick={() => window.location.href = `/appointments/${appointment.id}`}>Reschedule</button>}
       {allowLifecycle && eligible && <button className="button button--danger" type="button" onClick={() => window.location.href = `/appointments/${appointment.id}`}>Cancel Appointment</button>}
@@ -90,10 +101,12 @@ function AppointmentCard({ appointment, doctor, photoIndex, locale }) {
   const eligible = isFutureEligibleAppointment(appointment)
   return <article className="appointment-card card">
     <AppointmentDateBlock date={date} compact />
-    <span className="doctor-avatar doctor-photo appointment-doctor-photo" role="img" aria-label={`Portrait of ${doctor?.displayName ?? 'doctor'}`} style={{ '--photo-x': `${(Math.max(photoIndex, 0) % 5) * 25}%`, '--photo-y': photoIndex >= 5 ? '100%' : '0%' }} />
-    <div className="appointment-main">
-      <h2>{doctor?.displayName ?? 'Doctor'}</h2>
-      <span>{doctor?.specialty ?? 'Healthcare provider'}</span>
+    <div className="appointment-doctor">
+      <span className="doctor-avatar doctor-photo appointment-doctor-photo" role="img" aria-label={`Portrait of ${doctor?.displayName ?? 'doctor'}`} style={{ '--photo-x': `${(Math.max(photoIndex, 0) % 5) * 25}%`, '--photo-y': photoIndex >= 5 ? '100%' : '0%' }} />
+      <div className="appointment-main">
+        <h2>{doctor?.displayName ?? 'Doctor'}</h2>
+        <span>{doctor?.specialty ?? 'Healthcare provider'}</span>
+      </div>
     </div>
     <dl className="compact-facts">
       <div><dt>Date</dt><dd>{date.longDate}</dd></div>
@@ -102,18 +115,30 @@ function AppointmentCard({ appointment, doctor, photoIndex, locale }) {
       <div><dt>Status</dt><dd><AppointmentStatus status={appointment.status} label={t(`status.${appointment.status}`)} /></dd></div>
     </dl>
     <div className="appointment-actions">
+      <AppointmentReference appointment={appointment} />
+      <ConsultationJoinAction appointment={appointment} />
       <Link className="button button--secondary" to={`/appointments/${appointment.id}`}>{t('action.viewDetails')}</Link>
       {eligible && <button className="button button--ghost" type="button" aria-label="More actions" onClick={(e) => { e.preventDefault(); window.location.href = `/appointments/${appointment.id}` }}>⋯</button>}
     </div>
   </article>
 }
 
+function ConsultationJoinAction({ appointment }) {
+  if (!canShowConsultationJoin(appointment)) return null
+  return <Link className="button button--primary" to={`/consultations/${appointment.id}`}>Join Consultation</Link>
+}
+
 function AppointmentDateBlock({ date, compact = false }) {
   return <time className={`appointment-date-block${compact ? ' compact' : ''}`} dateTime={date.iso}><span>{date.month}</span><strong>{date.day}</strong><small>{date.weekday}</small></time>
 }
 
+function AppointmentReference({ appointment }) {
+  return <div className="appointment-reference">{Number.isInteger(appointment.feeMmk) && <span>Fee: {formatMmk(appointment.feeMmk)}</span>}{appointment.bookingCode && <span>Reference: {appointment.bookingCode}</span>}</div>
+}
+
 function AppointmentStatus({ status, label }) {
-  return <span className={`status-badge status-${status}`}><CheckCircle2 aria-hidden="true" />{label}</span>
+  const Icon = { pending: Clock, confirmed: CheckCircle2, completed: CheckCircle2, cancelled: XCircle, no_show: AlertTriangle, rescheduled: CalendarDays }[status] || AlertTriangle
+  return <span className={`status-badge status-${status}`}><Icon aria-hidden="true" />{label.startsWith('status.') ? 'Status unavailable' : label}</span>
 }
 
 function appointmentDateParts(value, locale) {
@@ -144,29 +169,33 @@ class AppointmentsUiBoundary extends Component {
 }
 
 function AppointmentDetails({ initialAppointment, doctor, onCanonicalChange }) {
+  const { t } = useLocalization()
+  const generation = useRef(0)
   const { patient } = useAuth()
   const [appointment, setAppointment] = useState(initialAppointment)
   const [events, setEvents] = useState([])
   const [mode, setMode] = useState(null)
   const [feedback, setFeedback] = useState(null)
   const refresh = useCallback(async () => {
-    const current = await presentationRepository.getAppointment(appointment.id, { patientId: patient?.id })
-    const history = presentationRepository.mode === 'supabase' ? [] : await presentationRepository.listAppointmentEvents(appointment.id)
-    if (current) { setAppointment(current); onCanonicalChange(current) }
+    const request = ++generation.current
+    const current = await presentationRepository.getAppointment(initialAppointment.id, { patientId: patient?.id })
+    const history = presentationRepository.mode === 'supabase' ? [] : await presentationRepository.listAppointmentEvents(initialAppointment.id)
+    if (request !== generation.current) return
+    setAppointment(current); onCanonicalChange(current)
     setEvents(history)
-  }, [appointment.id, onCanonicalChange, patient?.id])
-  useEffect(() => { void refresh() }, [refresh])
+  }, [initialAppointment.id, onCanonicalChange, patient?.id])
+  useEffect(() => () => { generation.current += 1 }, [])
+  if (!appointment) return <p role="status">Appointment unavailable.</p>
   const remote = appointment.consultationType !== 'home_visit'
   const eligible = isFutureEligibleAppointment(appointment)
-  const joinable = canJoinWaitingRoom(appointment)
   const allowLifecycle = presentationRepository.mode !== 'supabase'
   return <section className="appointment-details"><Link className="back-link" to="/appointments">← Back to appointments</Link>
     {feedback && <div className={`lifecycle-feedback ${feedback.type}`} role="status"><CheckCircle2 aria-hidden="true" /><span>{feedback.message}</span><button type="button" aria-label="Dismiss status" onClick={() => setFeedback(null)}>×</button></div>}
-    <article className="card appointment-detail-hero"><div><span className={`status-badge status-${appointment.status}`}>{appointment.status.replace('_', ' ')}</span><h1>{doctor?.displayName ?? 'Doctor appointment'}</h1><p>{doctor?.specialty} · {TYPE_LABELS[appointment.consultationType]}</p><strong className="booking-code">{appointment.bookingCode}</strong></div><div className="appointment-detail-actions">{joinable && <Link className="button button--primary" to={`/consultations/${appointment.id}`}>Join waiting room</Link>}{allowLifecycle && <button className="button button--secondary" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('reschedule')}>Reschedule</button>}{allowLifecycle && <button className="button button--danger" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('cancel')}>Cancel appointment</button>}</div></article>
-    {!eligible && <div className="eligibility-note"><AlertTriangle aria-hidden="true" /><span>{['completed', 'cancelled'].includes(appointment.status) ? `${appointment.status[0].toUpperCase() + appointment.status.slice(1)} appointments cannot be rescheduled, cancelled, or joined.` : 'Only future pending or confirmed appointments can be changed.'}</span></div>}
+    <article className="card appointment-detail-hero"><div><AppointmentStatus status={appointment.status} label={t(`status.${appointment.status}`)} /><h1>{doctor?.displayName ?? 'Doctor appointment'}</h1><p>{doctor?.specialty} · {TYPE_LABELS[appointment.consultationType]}</p><strong className="booking-code">{appointment.bookingCode}</strong></div><div className="appointment-detail-actions"><ConsultationJoinAction appointment={appointment} />{allowLifecycle && <button className="button button--secondary" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('reschedule')}>Reschedule</button>}{allowLifecycle && <button className="button button--danger" type="button" disabled={!eligible || mode !== null} onClick={() => setMode('cancel')}>Cancel appointment</button>}</div></article>
+    {!eligible && <div className="eligibility-note"><AlertTriangle aria-hidden="true" /><span>{['completed', 'cancelled'].includes(appointment.status) ? `${appointment.status[0].toUpperCase() + appointment.status.slice(1)} appointments cannot be rescheduled, cancelled, or joined.` : 'Only future pending, confirmed or rescheduled appointments are active. Booking changes are available only where supported.'}</span></div>}
     {mode === 'reschedule' && <ReschedulePanel appointment={appointment} onClose={() => setMode(null)} onChanged={async () => { setMode(null); await refresh(); setFeedback({ type: 'success', message: 'Appointment rescheduled successfully. Your dashboard and appointment details now show the new time.' }) }} />}
     {mode === 'cancel' && <CancelPanel appointment={appointment} onClose={() => setMode(null)} onChanged={async () => { setMode(null); await refresh(); setFeedback({ type: 'success', message: 'Appointment cancelled. The appointment time has been released safely.' }) }} />}
-    <div className="profile-grid"><article className="card info-card"><h2>Appointment details</h2><dl><div><dt>Date and time</dt><dd>{formatPresentationDateTime(appointment.scheduledAt)}</dd></div><div><dt>Consultation</dt><dd>{TYPE_LABELS[appointment.consultationType]}</dd></div><div><dt>Fee</dt><dd>{formatMmk(appointment.feeMmk)}</dd></div><div><dt>Reason for Visit/Symptoms</dt><dd>{appointment.symptoms || 'Not provided'}</dd></div>{appointment.cancellationReason && <div><dt>Cancellation reason</dt><dd>{appointment.cancellationReason}</dd></div>}</dl></article><article className="card info-card"><h2>{remote ? 'Remote consultation' : 'Home visit'}</h2><p>{remote ? (joinable ? 'Use the waiting-room button when you are ready. Access is unavailable after completion or cancellation.' : 'Waiting-room access is unavailable for this appointment status.') : 'The provider visits the registered patient address. Home visits do not use an online waiting room.'}</p></article></div>
+    <div className="profile-grid"><article className="card info-card"><h2>Appointment details</h2><dl><div><dt>Date and time</dt><dd>{formatPresentationDateTime(appointment.scheduledAt)}</dd></div><div><dt>Consultation</dt><dd>{TYPE_LABELS[appointment.consultationType]}</dd></div><div><dt>Fee</dt><dd>{formatMmk(appointment.feeMmk)}</dd></div><div><dt>Reason for Visit/Symptoms</dt><dd>{appointment.symptoms || 'Not provided'}</dd></div>{appointment.cancellationReason && <div><dt>Cancellation reason</dt><dd>{appointment.cancellationReason}</dd></div>}</dl></article><article className="card info-card"><h2>{remote ? 'Remote consultation' : 'Home visit'}</h2><p>{remote ? 'Use the Join Consultation button when it is available. Consultation access is unavailable after completion or cancellation.' : 'The provider visits the registered patient address. Home visits do not use an online waiting room.'}</p></article></div>
     <EventHistory events={events} />
   </section>
 }

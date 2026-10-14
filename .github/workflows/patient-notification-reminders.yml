@@ -1,0 +1,28 @@
+name: Staging patient notification reminders
+on:
+  schedule:
+    # Hourly. Local medication and appointment dates are computed by PostgreSQL.
+    - cron: '23 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: staging-patient-notification-reminders
+  cancel-in-progress: false
+jobs:
+  reminders:
+    runs-on: ubuntu-latest
+    environment: care-plan-maintenance
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      # The runner rejects any URL except the EasyCare Staging project before
+      # sending credentials. Login wellness is handled separately at login.
+      - name: Generate Staging patient reminders
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node supabase/scripts/run-notification-reminders.mjs

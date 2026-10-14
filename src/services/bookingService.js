@@ -1,4 +1,4 @@
-export const ACTIVE_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'checked_in', 'in_progress']
+export const ACTIVE_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'rescheduled']
 export const PAYMENT_NOTICE = 'Presentation Demo — No real payment is processed.'
 
 export class BookingConflictError extends Error {
@@ -14,11 +14,39 @@ export class AppointmentLifecycleError extends Error {
 }
 
 export function isFutureEligibleAppointment(appointment, now = new Date()) {
-  return ['pending', 'confirmed'].includes(appointment?.status) && new Date(appointment.scheduledAt) > now
+  return ACTIVE_APPOINTMENT_STATUSES.includes(appointment?.status) && new Date(appointment.scheduledAt) > now
 }
 
 export function canJoinWaitingRoom(appointment) {
-  return appointment?.consultationType !== 'home_visit' && ['pending', 'confirmed', 'checked_in'].includes(appointment?.status) && new Date(appointment.scheduledAt) > new Date()
+  return appointment?.consultationType !== 'home_visit' && isFutureEligibleAppointment(appointment)
+}
+
+export function canShowConsultationJoin(appointment, now = new Date()) {
+  const consultationType = appointment?.consultationType ?? appointment?.consultation_channel
+  const appointmentType = appointment?.appointmentType ?? appointment?.appointment_type
+  return consultationType === 'video'
+    && (!appointmentType || appointmentType === 'teleconsultation')
+    && isFutureEligibleAppointment(appointment, now)
+}
+
+export function safeZoomJoinUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return null
+  try {
+    const url = new URL(value.trim())
+    const host = url.hostname.toLowerCase()
+    if (url.protocol !== 'https:' || url.username || url.password
+      || !(host === 'zoom.us' || host.endsWith('.zoom.us'))
+      || url.pathname === '/' || url.pathname.length < 2) return null
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+export function selectAppointments(rows, filter = 'all', now = new Date()) {
+  const time = row => Date.parse(row.scheduledAt)
+  return rows.filter(row => filter === 'all' || (filter === 'upcoming' ? isFutureEligibleAppointment(row, now) : filter === 'history' ? ['completed', 'no_show'].includes(row.status) || (ACTIVE_APPOINTMENT_STATUSES.includes(row.status) && time(row) <= +now) : row.status === filter))
+    .sort((a, b) => ((filter === 'upcoming' ? 1 : -1) * ((time(a) || 0) - (time(b) || 0))) || String(a.id).localeCompare(String(b.id)))
 }
 
 export function createIdempotencyKey() {

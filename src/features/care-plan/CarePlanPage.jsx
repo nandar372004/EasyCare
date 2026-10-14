@@ -1,30 +1,135 @@
-import { useMemo, useState } from 'react'
-import { CalendarDays, Check, CheckCircle2, Clock3, Home, MapPin, ShieldCheck, Stethoscope } from 'lucide-react'
-import { CARE_LEVELS, CARE_PACKAGES, DURATIONS, calculateCarePlanPrice, formatMmk } from './carePlanPricing.js'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, Check, CheckCircle2, Clock3, MapPin, ShieldCheck, Stethoscope } from 'lucide-react'
+import { CARE_LEVELS, CARE_PACKAGES, calculateCarePlanPrice, formatMmk } from './carePlanPricing.js'
+import { useAuth } from '../auth/AuthContext.jsx'
+import { familyHealthService } from '../../services/familyHealthService.js'
+import { carePlanCatalogService } from '../../services/carePlanCatalogService.js'
+import { carePlanBookingService } from '../../services/carePlanBookingService.js'
 
-const STEPS = ['Package', 'Care Level', 'Duration', 'Schedule', 'Details', 'Review']
+const STEPS = ['Package', 'Care Level', 'Duration', 'Schedule', 'For Who?', 'Details', 'Review']
+const FAMILY_PERMISSION_MESSAGE = 'You no longer have permission to book care for this family member.'
+
+function createIdempotencyKey() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  const bytes = globalThis.crypto?.getRandomValues?.(new Uint8Array(16))
+  if (!bytes) throw new Error('Secure booking retry protection is unavailable. Please refresh and try again.')
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+async function loadAuthorizedFamilyRecipients() {
+  const groups = await familyHealthService.getGroups()
+  const members = (await Promise.all((groups || []).map(group => familyHealthService.getMembers(group.id)))).flat()
+  return [...new Map(members.filter(member => !member.is_self && canBookForMember(member)).map(member => [member.patient_id, member])).values()]
+}
+
+function canBookForMember(member, now = Date.now()) {
+  const grant = member?.authorization
+  return Boolean(member?.patient_id && grant?.status === 'active'
+    && (!grant.expires_at || Date.parse(grant.expires_at) > now)
+    && grant.appointments === true && grant.payments === true)
+}
 
 export function CarePlanPage() {
+  const auth = useAuth()
   const [step, setStep] = useState(0)
   const [packageId, setPackageId] = useState('')
   const [careLevelId, setCareLevelId] = useState('')
-  const [durationId, setDurationId] = useState('7-days')
+  const [durationDays, setDurationDays] = useState(7)
+  const [catalogPackages, setCatalogPackages] = useState([])
+  const [catalogLoading, setCatalogLoading] = useState(true)
+  const [catalogError, setCatalogError] = useState('')
+  const [quotes, setQuotes] = useState([])
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const [quoteError, setQuoteError] = useState('')
   const [startDate, setStartDate] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [bookingError, setBookingError] = useState('')
+  const [bookingResult, setBookingResult] = useState(null)
+  const idempotencyKeyRef = useRef(null)
+  const [recipientId, setRecipientId] = useState('')
+  const [familyRecipients, setFamilyRecipients] = useState([])
+  const [recipientsLoading, setRecipientsLoading] = useState(false)
+  const [recipientsError, setRecipientsError] = useState('')
+  const [recipientError, setRecipientError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    carePlanCatalogService.listPackages()
+      .then(rows => { if (active) { setCatalogPackages(rows); setCatalogError('') } })
+      .catch(() => { if (active) setCatalogError('Home Care prices are temporarily unavailable. Please try again later.') })
+      .finally(() => { if (active) setCatalogLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const selectedPackage = catalogPackages.find(item => item.code === packageId)
+    const selectedLevel = selectedPackage?.levels.find(item => item.code === careLevelId)
+    if (!selectedPackage || !selectedLevel) {
+      setQuotes([])
+      setQuoteError('')
+      setQuoteLoading(false)
+      return undefined
+    }
+    setQuoteLoading(true)
+    setQuoteError('')
+    Promise.all(selectedPackage.allowedDurationDays.map(days => carePlanCatalogService.quote(selectedPackage.id, selectedLevel.id, days)))
+      .then(rows => { if (active) setQuotes(rows.filter(Boolean)) })
+      .catch(() => { if (active) { setQuotes([]); setQuoteError('We could not calculate this Home Care quote. Please try again.') } })
+      .finally(() => { if (active) setQuoteLoading(false) })
+    return () => { active = false }
+  }, [catalogPackages, packageId, careLevelId])
+
+  useEffect(() => {
+    const chosenPackage = catalogPackages.find(item => item.code === packageId)
+    if (chosenPackage && !chosenPackage.allowedDurationDays.includes(durationDays)) {
+      setDurationDays(chosenPackage.allowedDurationDays[0] || 0)
+    }
+  }, [catalogPackages, packageId, durationDays])
+
+  useEffect(() => {
+    let active = true
+    async function loadRecipients() {
+      setRecipientsLoading(true)
+      try {
+        const eligible = await loadAuthorizedFamilyRecipients()
+        if (active) setFamilyRecipients(eligible)
+      } catch {
+        if (active) setRecipientsError('Authorized family members could not be loaded. You can still choose yourself.')
+      } finally {
+        if (active) setRecipientsLoading(false)
+      }
+    }
+    if (auth.patient?.id) loadRecipients()
+    return () => { active = false }
+  }, [auth.patient?.id, auth.user?.id])
 
   const selectedPackage = CARE_PACKAGES.find((item) => item.id === packageId) || null
+  const selectedCatalogPackage = catalogPackages.find(item => item.code === packageId) || null
   const allowedLevels = useMemo(() => {
-    if (!selectedPackage) return CARE_LEVELS
-    return CARE_LEVELS.filter((level) => selectedPackage.allowedLevels.includes(level.id))
-  }, [selectedPackage])
+    if (!selectedCatalogPackage) return []
+    return selectedCatalogPackage.levels.map(serverLevel => CARE_LEVELS.find(level => level.id === serverLevel.code)).filter(Boolean)
+  }, [selectedCatalogPackage])
 
   const selectedLevel = CARE_LEVELS.find((item) => item.id === careLevelId) || null
-  const selectedDuration = DURATIONS.find((item) => item.id === durationId) || DURATIONS[2]
-  const dailyPrice = selectedLevel?.pricePerDay ?? 0
-  const price = calculateCarePlanPrice(dailyPrice, selectedDuration.days)
+  const selectedCatalogLevel = selectedCatalogPackage?.levels.find(item => item.code === careLevelId) || null
+  const availableDurations = (selectedCatalogPackage?.allowedDurationDays || []).map(days => ({
+    days, id: String(days) + '-days', label: String(days) + (days === 1 ? ' Day' : ' Days'),
+  }))
+  const selectedDuration = availableDurations.find(item => item.days === durationDays) || null
+  const selectedQuote = quotes.find(item => Number(item.duration_days) === durationDays) || null
+  const price = calculateCarePlanPrice(selectedQuote)
+  const dailyPrice = Number(selectedCatalogLevel?.unitPrice || 0)
+  const selectedMember = familyRecipients.find(item => item.patient_id === recipientId)
+  const selectedRecipient = recipientId === auth.patient?.id
+    ? { name: auth.patient?.full_name || 'You', relationship: 'Myself' }
+    : selectedMember ? { name: selectedMember.display_name, relationship: selectedMember.relationshipLabel || 'Family member' } : null
 
   function localDateMinimum() {
     const now = new Date()
@@ -33,25 +138,98 @@ export function CarePlanPage() {
 
   function update(setter, value) {
     setter(value)
-    setSubmitted(false)
+    idempotencyKeyRef.current = null
+    setBookingResult(null)
+    setBookingError('')
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    setSubmitted(true)
+    if (bookingLoading || bookingResult) return
+    setBookingError('')
+    if (!selectedQuote || quoteLoading || !selectedCatalogPackage || !selectedCatalogLevel) {
+      setBookingError('A current server quote is required before you can send this request.')
+      return
+    }
+    const validRecipient = await validateRecipientBeforeReview()
+    if (!validRecipient) return
+    setBookingLoading(true)
+    try {
+      if (!idempotencyKeyRef.current) idempotencyKeyRef.current = createIdempotencyKey()
+      const result = await carePlanBookingService.createBooking({
+        recipientPatientId: recipientId,
+        packageId: selectedCatalogPackage.id,
+        serviceId: selectedCatalogLevel.id,
+        durationDays,
+        preferredDate: startDate,
+        preferredTime: startTime,
+        address,
+        reasonSymptoms: notes,
+        idempotencyKey: idempotencyKeyRef.current,
+      })
+      if (!result?.care_request_id) throw new Error('We could not confirm your Home Care request. Please try again.')
+      setBookingResult(result)
+      setBookingError('')
+      idempotencyKeyRef.current = null
+    } catch (error) {
+      if (recipientId !== auth.patient?.id && error?.code === '42501'
+        && /permission to book care for this family member/i.test(error.message || '')) {
+        setRecipientId('')
+        setStep(4)
+        setRecipientError(FAMILY_PERMISSION_MESSAGE)
+        try { setFamilyRecipients(await loadAuthorizedFamilyRecipients()) } catch { setFamilyRecipients([]) }
+        return
+      }
+      setBookingError(error?.message || 'We could not send your Home Care request. Please try again.')
+    } finally {
+      setBookingLoading(false)
+    }
+  }
+
+  async function validateRecipientBeforeReview() {
+    setRecipientError('')
+    if (!recipientId) {
+      setRecipientError('Please select who this Home Care service is for.')
+      setStep(4)
+      return false
+    }
+    if (recipientId === auth.patient?.id) return true
+    try {
+      const members = await loadAuthorizedFamilyRecipients()
+      const current = members.find(member => member.patient_id === recipientId && !member.is_self)
+      if (canBookForMember(current)) return true
+      setFamilyRecipients(members)
+      setRecipientId('')
+      setRecipientError(FAMILY_PERMISSION_MESSAGE)
+      setStep(4)
+      return false
+    } catch {
+      setRecipientError('We could not recheck family authorization. Please try again before continuing.')
+      setStep(4)
+      return false
+    }
   }
 
   function canProceed() {
-    if (step === 0) return !!packageId
-    if (step === 1) return !!careLevelId
-    if (step === 2) return !!durationId
+    if (step === 0) return catalogPackages.some(item => item.code === packageId && item.levels.length > 0)
+    if (step === 1) return Boolean(careLevelId && selectedCatalogLevel)
+    if (step === 2) return Boolean(durationDays && selectedQuote)
     if (step === 3) return !!startDate && !!startTime
-    if (step === 4) return !!address
+    if (step === 4) return !!recipientId
+    if (step === 5) return !!address
     return true
   }
 
   function nextStep() {
-    if (canProceed() && step < STEPS.length - 1) setStep(step + 1)
+    if (!canProceed()) {
+      if (step === 4 && !recipientId) setRecipientError('Please select who this Home Care service is for.')
+      return
+    }
+    if (step === 5) {
+      validateRecipientBeforeReview().then(valid => { if (valid) setStep(6) })
+      return
+    }
+    if (step < STEPS.length - 1) setStep(step + 1)
   }
 
   function prevStep() {
@@ -59,10 +237,15 @@ export function CarePlanPage() {
   }
 
   function resetForPackage(newPackageId) {
+    idempotencyKeyRef.current = null
+    setBookingResult(null)
+    setBookingError('')
     setPackageId(newPackageId)
-    const pkg = CARE_PACKAGES.find((item) => item.id === newPackageId)
-    const defaultLevel = pkg?.defaultLevel || ''
-    setCareLevelId(defaultLevel)
+    const pkg = catalogPackages.find(item => item.code === newPackageId)
+    const presentation = CARE_PACKAGES.find((item) => item.id === newPackageId)
+    const preferred = pkg?.levels.find(item => item.code === presentation?.defaultLevel)?.code
+    setCareLevelId(preferred || pkg?.levels[0]?.code || '')
+    setDurationDays(pkg?.allowedDurationDays.includes(durationDays) ? durationDays : pkg?.allowedDurationDays[0] || 0)
     setStep(1)
   }
 
@@ -71,7 +254,7 @@ export function CarePlanPage() {
       <header className="care-plan-heading">
         <div>
           <span className="eyebrow">Care at your doorstep</span>
-          <h1>Choose the Right Care for Your Loved One</h1>
+          <h1>Request Professional Home Care</h1>
           <p>Professional home healthcare tailored to your family's needs.</p>
         </div>
         <div className="care-plan-assurance">
@@ -101,14 +284,18 @@ export function CarePlanPage() {
       </div>
 
       <div className="care-plan-layout">
-        <form className="care-plan-form card" onSubmit={handleSubmit}>
+        <form className="care-plan-form card" onSubmit={handleSubmit} aria-busy={bookingLoading}>
           {step === 0 && (
             <fieldset>
               <legend><span>1</span> Choose a care package</legend>
+              {catalogLoading && <p role="status">Loading Home Care packages and prices…</p>}
+              {catalogError && <p className="care-recipient-error" role="alert">{catalogError}</p>}
               <div className="care-package-grid">
-                {CARE_PACKAGES.map((item) => (
-                  <label className={`care-package-option${packageId === item.id ? ' selected' : ''}`} key={item.id}>
-                    <input className="sr-only" type="radio" name="package" value={item.id} checked={packageId === item.id} onChange={() => resetForPackage(item.id)} />
+                {CARE_PACKAGES.map((item) => {
+                  const available = catalogPackages.some(row => row.code === item.id && row.levels.length)
+                  return (
+                  <label className={'care-package-option' + (packageId === item.id ? ' selected' : '') + (available ? '' : ' unavailable')} key={item.id}>
+                    <input className="sr-only" type="radio" name="package" value={item.id} checked={packageId === item.id} disabled={!available || catalogLoading} onChange={() => resetForPackage(item.id)} />
                     <div>
                       <strong>{item.name}</strong>
                       <p>{item.description}</p>
@@ -117,9 +304,11 @@ export function CarePlanPage() {
                         {item.includes.length > 4 && <li>+{item.includes.length - 4} more</li>}
                       </ul>
                       {item.note && <small className="care-package-note">{item.note}</small>}
+                      {!available && <small className="care-package-note">{item.id === 'remote-family' ? 'Coming Soon / Pricing to be confirmed' : 'Temporarily unavailable'}</small>}
                     </div>
                   </label>
-                ))}
+                  )
+                })}
               </div>
             </fieldset>
           )}
@@ -141,8 +330,8 @@ export function CarePlanPage() {
                         {item.includes.map((text) => <li key={text}>{text}</li>)}
                       </ul>
                       <div className="care-level-price">
-                        <strong>{formatMmk(item.pricePerDay)} / day</strong>
-                        <small>Estimated prototype rate</small>
+                        <strong>{formatMmk(selectedCatalogPackage?.levels.find(level => level.code === item.id)?.unitPrice || 0)} / day</strong>
+                        <small>Server-quoted rate</small>
                       </div>
                     </div>
                   </label>
@@ -154,12 +343,14 @@ export function CarePlanPage() {
           {step === 2 && (
             <fieldset>
               <legend><span>3</span> Choose duration</legend>
+              {quoteLoading && <p role="status">Calculating server quotes…</p>}
+              {quoteError && <p className="care-recipient-error" role="alert">{quoteError}</p>}
               <div className="duration-grid">
-                {DURATIONS.map((item) => (
-                  <label className={`duration-option${durationId === item.id ? ' selected' : ''}`} key={item.id}>
-                    <input className="sr-only" type="radio" name="duration" value={item.id} checked={durationId === item.id} onChange={() => update(setDurationId, item.id)} />
+                {availableDurations.map((item) => (
+                  <label className={'duration-option' + (durationDays === item.days ? ' selected' : '')} key={item.id}>
+                    <input className="sr-only" type="radio" name="duration" value={item.days} checked={durationDays === item.days} onChange={() => update(setDurationDays, item.days)} />
                     <strong>{item.label}</strong>
-                    {selectedLevel && <small>{formatMmk(calculateCarePlanPrice(selectedLevel.pricePerDay, item.days).total)} total</small>}
+                    {quotes.find(quote => Number(quote.duration_days) === item.days) && <small>{formatMmk(Number(quotes.find(quote => Number(quote.duration_days) === item.days).subtotal))} total</small>}
                   </label>
                 ))}
               </div>
@@ -184,7 +375,29 @@ export function CarePlanPage() {
 
           {step === 4 && (
             <fieldset>
-              <legend><span>5</span> Home visit details</legend>
+              <legend><span>5</span> For Who? <span className="care-recipient-required">*</span></legend>
+              <p className="care-recipient-helper">Select who needs this home care service.</p>
+              <div className="care-recipient-list" role="radiogroup" aria-label="For Who?">
+                {auth.patient?.id && <button type="button" role="radio" aria-checked={recipientId === auth.patient.id} className={'care-recipient-option' + (recipientId === auth.patient.id ? ' selected' : '')} onClick={() => { setRecipientId(auth.patient.id); setRecipientError(''); setBookingError(''); idempotencyKeyRef.current = null; setBookingResult(null) }}>
+                  <span className="care-recipient-avatar" aria-hidden="true">{(auth.patient.full_name || 'Y').trim().charAt(0).toUpperCase()}</span>
+                  <span className="care-recipient-copy"><strong>{auth.patient.full_name || 'You'}</strong><small>Myself</small></span>
+                  <span className="care-recipient-indicator" aria-hidden="true">{recipientId === auth.patient.id && <Check aria-hidden="true" />}</span>
+                </button>}
+                {familyRecipients.map(member => <button type="button" role="radio" aria-checked={recipientId === member.patient_id} className={'care-recipient-option' + (recipientId === member.patient_id ? ' selected' : '')} key={member.patient_id} onClick={() => { setRecipientId(member.patient_id); setRecipientError(''); setBookingError(''); idempotencyKeyRef.current = null; setBookingResult(null) }}>
+                  <span className="care-recipient-avatar" aria-hidden="true">{(member.display_name || '?').trim().charAt(0).toUpperCase()}</span>
+                  <span className="care-recipient-copy"><strong>{member.display_name}</strong><small>{member.relationshipLabel || 'Family member'}</small></span>
+                  <span className="care-recipient-indicator" aria-hidden="true">{recipientId === member.patient_id && <Check aria-hidden="true" />}</span>
+                </button>)}
+              </div>
+              {recipientsLoading && <p className="care-recipient-status" role="status">Loading authorized family members…</p>}
+              {recipientsError && <p className="care-recipient-status" role="status">{recipientsError}</p>}
+              {(recipientError || (!recipientId && !recipientsLoading)) && <p className="care-recipient-error" role="alert">{recipientError || 'Please select who this Home Care service is for.'}</p>}
+            </fieldset>
+          )}
+
+          {step === 5 && (
+            <fieldset>
+              <legend><span>6</span> Home visit details</legend>
               <div className="form-field">
                 <label htmlFor="care-address">Home address</label>
                 <div className="care-input-icon">
@@ -199,21 +412,22 @@ export function CarePlanPage() {
             </fieldset>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <fieldset>
-              <legend><span>6</span> Review care request</legend>
+              <legend><span>7</span> Review care request</legend>
               <div className="review-list">
+                <div><strong>For</strong><span>{selectedRecipient ? selectedRecipient.name + ' — ' + selectedRecipient.relationship : 'Not selected'}</span></div>
+                <div><strong>Requested by</strong><span>{auth.patient?.full_name || 'Signed-in patient'}</span></div>
                 <div><strong>Package</strong><span>{selectedPackage?.name}</span></div>
                 <div><strong>Care level</strong><span>{selectedLevel?.name}</span></div>
-                <div><strong>Duration</strong><span>{selectedDuration.label}</span></div>
+                <div><strong>Duration</strong><span>{selectedDuration?.label || 'Not quoted'}</span></div>
                 <div><strong>Start</strong><span>{startDate || 'Not set'} {startDate && `at ${startTime}`}</span></div>
                 <div><strong>Address</strong><span>{address || 'Not set'}</span></div>
                 {notes && <div><strong>Care notes</strong><span>{notes}</span></div>}
                 <div className="review-price">
                   <strong>Total</strong>
-                  <span>{formatMmk(price.total)}</span>
+                  <span>{selectedQuote ? formatMmk(price.total) : quoteLoading ? 'Calculating…' : 'Quote unavailable'}</span>
                 </div>
-                <small className="review-commission">Includes EasyCare platform service fee ({Math.round(100 - (1 - 0.17) * 100)}%).</small>
               </div>
             </fieldset>
           )}
@@ -226,23 +440,27 @@ export function CarePlanPage() {
               </button>
             )}
             {step === STEPS.length - 1 && (
-              <button className="button button--primary care-plan-submit" type="submit">Book Care Plan</button>
+              <button className="button button--primary care-plan-submit" type="submit" disabled={bookingLoading || bookingResult != null || quoteLoading || !selectedQuote || !recipientId || !address.trim() || !startDate || !startTime}>
+                {bookingLoading ? 'Sending request…' : bookingResult ? 'Request sent' : 'Request Home Care'}
+              </button>
             )}
           </div>
 
-          {submitted && (
+          {bookingError && <p className="care-recipient-error" role="alert">{bookingError}</p>}
+          {bookingResult && (
             <div className="success-message care-plan-success" role="status">
               <CheckCircle2 aria-hidden="true" />
               <span>
-                <strong>Your care request is ready for review.</strong>
-                This preview has not created or sent a real booking.
+                <strong>Your Home Care request has been sent.</strong>
+                {bookingResult.care_request_id ? ` Request reference: ${bookingResult.care_request_id}.` : ' EasyCare will review your request.'}
+                {bookingResult.subtotal != null && ` Server-confirmed total: ${formatMmk(Number(bookingResult.subtotal))}.`}
               </span>
             </div>
           )}
         </form>
 
         <aside className="care-plan-summary card" aria-label="Care plan summary">
-          <span className="eyebrow">Your Care Plan</span>
+          <span className="eyebrow">Your Home Care Request</span>
           <h2>{selectedPackage?.name || 'Select a package'}</h2>
           <p>{selectedPackage?.description || 'Choose a care package to get started.'}</p>
 
@@ -255,7 +473,7 @@ export function CarePlanPage() {
             </div>
             <div>
               <dt><Clock3 aria-hidden="true" /> Duration</dt>
-              <dd>{selectedDuration.label}</dd>
+              <dd>{selectedDuration?.label || 'Choose a duration'}</dd>
             </div>
             <div>
               <dt><CalendarDays aria-hidden="true" /> Start</dt>
@@ -267,19 +485,11 @@ export function CarePlanPage() {
             </div>
           </dl>
 
-          {dailyPrice > 0 && (
+          {selectedQuote && dailyPrice > 0 && (
             <div className="care-plan-price">
               <div>
                 <span>Service total</span>
                 <strong>{formatMmk(price.total)}</strong>
-              </div>
-              <button type="button" className="care-plan-price-details" aria-expanded="false" onClick={(e) => { const next = e.currentTarget.nextElementSibling; const expanded = e.currentTarget.getAttribute('aria-expanded') === 'true'; e.currentTarget.setAttribute('aria-expanded', String(!expanded)); next.hidden = expanded }}>
-                Price details
-              </button>
-              <div className="care-plan-price-breakdown" hidden>
-                <div><span>Provider care amount</span><span>{formatMmk(price.providerAmount)}</span></div>
-                <div><span>EasyCare platform commission (17%)</span><span>{formatMmk(price.commission)}</span></div>
-                <div className="care-plan-price-total"><span>Total</span><span>{formatMmk(price.total)}</span></div>
               </div>
             </div>
           )}

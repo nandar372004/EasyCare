@@ -1,29 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LogOut, Settings as SettingsIcon } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { bloodTypeOptions, genderOptions, normalizeMyanmarPhone } from '../auth/registrationSchema.js'
+import { Link, useNavigate } from 'react-router-dom'
+import { genderOptions, normalizeMyanmarPhone } from '../auth/registrationSchema.js'
 import { useAuth } from '../auth/AuthContext.jsx'
 import { useLocalization } from '../localization/LocalizationContext.jsx'
 import { presentationRepository } from '../../services/repositories/index.js'
+import { PatientReportedHealthIntake } from '../health/PatientReportedHealthIntake.jsx'
 
 const emptyForm = {
   fullName: '', dateOfBirth: '', gender: '', preferredLanguage: 'en',
   addressLine: '', township: '', city: '', emergencyName: '',
-  emergencyRelationship: '', emergencyPhone: '', bloodType: 'Unknown',
-  noKnownAllergies: false, allergies: '', existingMedicalConditions: '', currentMedications: '',
+  emergencyRelationship: '', emergencyPhone: '',
 }
 
 function formFromPatient(patient) {
-  const care = patient.care_preferences ?? {}
   return {
     fullName: patient.full_name ?? '', dateOfBirth: patient.date_of_birth ?? '',
     gender: patient.gender ?? '', preferredLanguage: patient.preferred_language ?? 'en',
     addressLine: patient.address_line ?? '', township: patient.township ?? '', city: patient.city ?? '',
     emergencyName: patient.emergency_contact_name ?? '',
     emergencyRelationship: patient.emergency_contact_relationship ?? '',
-    emergencyPhone: patient.emergency_contact_phone ?? '', bloodType: patient.blood_type ?? 'Unknown',
-    noKnownAllergies: Boolean(care.noKnownAllergies), allergies: care.allergies ?? '',
-    existingMedicalConditions: care.existingMedicalConditions ?? '', currentMedications: care.currentMedications ?? '',
+    emergencyPhone: patient.emergency_contact_phone ?? '',
   }
 }
 
@@ -33,9 +30,6 @@ function validate(form) {
   if (form.dateOfBirth && new Date(`${form.dateOfBirth}T00:00:00`) >= new Date()) return 'Date of birth must be in the past.'
   if (form.gender && !genderOptions.includes(form.gender)) return 'Choose a valid gender.'
   if (!['en', 'my'].includes(form.preferredLanguage)) return 'Choose a valid preferred language.'
-  if (!bloodTypeOptions.includes(form.bloodType)) return 'Choose a valid blood type.'
-  if (!form.noKnownAllergies && !form.allergies.trim()) return 'List allergies or select “No known allergies”.'
-  if (form.allergies.length > 1000 || form.existingMedicalConditions.length > 2000 || form.currentMedications.length > 2000) return 'Medical profile text is too long.'
   if (form.emergencyPhone.trim()) {
     try { normalizeMyanmarPhone(form.emergencyPhone) } catch { return 'Enter a valid emergency contact phone number.' }
   }
@@ -66,7 +60,7 @@ export function PatientSettingsPage() {
   useEffect(() => { void load() }, [load])
   const update = (field) => (event) => {
     const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value
-    setForm((current) => ({ ...current, [field]: value, ...(field === 'noKnownAllergies' && value ? { allergies: '' } : {}) }))
+    setForm((current) => ({ ...current, [field]: value }))
     setError(''); setSuccess('')
   }
 
@@ -76,13 +70,6 @@ export function PatientSettingsPage() {
     if (validationError) { setError(validationError); return }
     setSaving(true); setError(''); setSuccess('')
     try {
-      const carePreferences = {
-        ...(profile?.care_preferences ?? {}),
-        noKnownAllergies: form.noKnownAllergies,
-        allergies: form.noKnownAllergies ? '' : form.allergies.trim(),
-        existingMedicalConditions: form.existingMedicalConditions.trim(),
-        currentMedications: form.currentMedications.trim(),
-      }
       const updated = await presentationRepository.updatePatientProfile({
         patientId: patient.id,
         authUserId: user.id,
@@ -93,7 +80,6 @@ export function PatientSettingsPage() {
           city: form.city.trim() || null, emergency_contact_name: form.emergencyName.trim() || null,
           emergency_contact_relationship: form.emergencyRelationship.trim() || null,
           emergency_contact_phone: form.emergencyPhone.trim() ? normalizeMyanmarPhone(form.emergencyPhone) : null,
-          blood_type: form.bloodType, care_preferences: carePreferences,
         },
       })
       setProfile(updated); setForm(formFromPatient(updated)); synchronizePatient(updated)
@@ -108,6 +94,7 @@ export function PatientSettingsPage() {
 
   return <section className="secondary-page patient-settings-page">
     <header className="page-heading secondary-heading"><div className="secondary-title-icon"><SettingsIcon /></div><div><h1>Profile Settings</h1><p>Manage your patient information.</p></div></header>
+    <Link className="button button--secondary" to="/family">Manage My Family</Link>
     <form className="patient-profile-form" onSubmit={save}>
       <ProfileSection title="Personal Information">
         <Field label="Full Name"><input value={form.fullName} onChange={update('fullName')} maxLength="160" required /></Field>
@@ -126,17 +113,11 @@ export function PatientSettingsPage() {
         <Field label="Relationship"><input value={form.emergencyRelationship} onChange={update('emergencyRelationship')} maxLength="80" /></Field>
         <Field label="Phone Number"><input value={form.emergencyPhone} onChange={update('emergencyPhone')} inputMode="tel" /></Field>
       </ProfileSection>
-      <ProfileSection title="Medical Profile">
-        <Field label="Blood Type"><select value={form.bloodType} onChange={update('bloodType')}>{bloodTypeOptions.map((item) => <option key={item}>{item}</option>)}</select></Field>
-        <label className="profile-checkbox"><input type="checkbox" checked={form.noKnownAllergies} onChange={update('noKnownAllergies')} /><span>No known allergies</span></label>
-        <Field label="Allergies"><textarea value={form.allergies} onChange={update('allergies')} disabled={form.noKnownAllergies} maxLength="1000" rows="3" /></Field>
-        <Field label="Existing Medical Conditions"><textarea value={form.existingMedicalConditions} onChange={update('existingMedicalConditions')} maxLength="2000" rows="3" /></Field>
-        <Field label="Current Medications"><textarea value={form.currentMedications} onChange={update('currentMedications')} maxLength="2000" rows="3" /></Field>
-      </ProfileSection>
       {error && <div className="error-message" role="alert">{error}</div>}
       {success && <div className="profile-success" role="status">{success}</div>}
       <div className="profile-save-actions"><button className="primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button></div>
     </form>
+    <PatientReportedHealthIntake />
     <article className="card profile-account"><h2>Account</h2><p><strong>{profile.primary_phone}</strong><br /><small>This phone number is used for account sign-in.</small></p><button className="outline-button danger-text" type="button" onClick={logout}><LogOut aria-hidden="true" /> Logout</button></article>
   </section>
 }

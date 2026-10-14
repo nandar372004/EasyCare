@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Bot, CalendarDays, ClipboardList, CreditCard, FlaskConical, HeartPulse, LayoutDashboard, MapPin, MessageSquare, Pill, Settings, Stethoscope } from 'lucide-react'
+import { Bot, CalendarDays, ClipboardList, CreditCard, FileText, FlaskConical, HeartPulse, Home, LayoutDashboard, MapPin, MessageSquare, Pill, Settings, Stethoscope, Users } from 'lucide-react'
 import { Brand } from './Brand.jsx'
 import { primaryNavigation } from '../data/navigation.js'
 import { useLocalization } from '../features/localization/LocalizationContext.jsx'
 
-const icons = { LayoutDashboard, Bot, Stethoscope, CalendarDays, HeartPulse, ClipboardList, FlaskConical, Pill, CreditCard, MessageSquare, MapPin, Settings }
+const icons = { LayoutDashboard, Bot, Stethoscope, CalendarDays, HeartPulse, ClipboardList, FlaskConical, Pill, CreditCard, MessageSquare, MapPin, Settings, Home, Users, FileText }
 
 const groups = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -28,7 +28,7 @@ export function Sidebar() {
               {items.map((item) => {
                 const Icon = icons[item.icon]
                 return (
-                  <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                  <NavLink key={item.to} to={item.to} end={item.end || item.to === '/'} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
                     <Icon aria-hidden="true" />
                     <span>{item.label}</span>
                   </NavLink>

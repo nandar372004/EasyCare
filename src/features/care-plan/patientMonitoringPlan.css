@@ -1,0 +1,67 @@
+.care-dashboard-card--monitoring .patient-monitoring-plan,
+.care-dashboard-card--monitoring .patient-monitoring-plan *{box-sizing:border-box}
+.monitoring-today-heading{margin:0 0 10px;color:#556a80;font-size:.82rem;font-weight:750}
+.monitoring-today-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.monitoring-today-heading input{min-height:36px;padding:5px 8px;border:1px solid #dfe2eb;border-radius:8px;background:#fff;color:#25354b;font:inherit;font-size:.78rem}.monitoring-today-heading span{font-weight:600}
+.monitoring-empty{display:grid;gap:8px;padding:12px 2px;color:#56697c;font-size:.9rem}
+.monitoring-empty p{margin:0}
+.monitoring-empty button,.monitoring-add{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:8px 12px;border:1px solid #d6d8ef;border-radius:11px;background:#fff;color:#484c82;font:inherit;font-size:.84rem;font-weight:750;cursor:pointer}
+.monitoring-routine-list{display:grid;gap:10px}
+.monitoring-routine{min-width:0;padding:12px;border:1px solid #ececf4;border-radius:14px;background:#fff}
+.monitoring-routine.is-inactive{background:#fafafd}
+.monitoring-routine-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.monitoring-routine-heading h3{margin:0;color:#25354b;font-size:.96rem;font-weight:800;line-height:1.35}
+.monitoring-context,.monitoring-notes{margin:4px 0 0;color:#69758a;font-size:.8rem;line-height:1.45}
+.monitoring-schedule{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:7px 0 0;color:#5d6885;font-size:.77rem;font-weight:650}
+.monitoring-schedule svg{width:14px;height:14px}
+.monitoring-routine-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}
+.monitoring-routine-actions button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:44px;min-height:44px;padding:5px;border:0;border-radius:9px;background:transparent;color:#686c90;font:inherit;font-size:.73rem;cursor:pointer}
+.monitoring-routine-actions button:hover,.monitoring-routine-actions button:focus-visible{background:#f0f0fa;outline:2px solid #8888bd;outline-offset:1px}
+.monitoring-routine-actions svg{width:16px;height:16px}
+.monitoring-paused{flex:none;padding:5px 8px;border-radius:99px;background:#f0f0f4;color:#737987;font-size:.73rem;font-weight:750}
+.monitoring-today-list{display:grid;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid #f0eff6}
+.monitoring-today-list h4{margin:0;color:#394b64;font-size:.78rem;font-weight:800}
+.monitoring-not-scheduled{margin:0;color:#7a8290;font-size:.78rem}
+.monitoring-occurrence{display:grid;gap:8px;padding:7px 0;border-top:1px solid #f2f2f7}
+.monitoring-occurrence-toggle{display:flex;align-items:center;gap:9px;min-height:44px;color:#384b62;font-size:.82rem;font-weight:700;cursor:pointer}
+.monitoring-occurrence-toggle input{width:19px;height:19px;accent-color:#5c64a3}
+.monitoring-occurrence.is-done .monitoring-occurrence-toggle>span:first-of-type{color:#667385;text-decoration:line-through}
+.monitoring-done-label{display:inline-flex;align-items:center;gap:3px;margin-left:auto;color:#39764e;font-size:.75rem}
+.monitoring-done-label svg{width:15px;height:15px}
+.monitoring-measurement{display:flex;align-items:flex-end;gap:7px 9px;padding-left:28px}
+.monitoring-measurement-entry{display:flex;align-items:flex-end;flex-wrap:wrap;gap:7px;padding-left:28px}.monitoring-measurement-entry label,.monitoring-measurement-definition label{display:grid;gap:3px;min-width:64px;color:#778094;font-size:.68rem;font-weight:700}.monitoring-measurement-entry input,.monitoring-measurement-definition input,.monitoring-measurement-definition select{width:100%;min-width:70px;min-height:38px;padding:6px 8px;border:1px solid #dfe2eb;border-radius:8px;background:#fff;color:#25354b;font:inherit;font-size:.78rem}.monitoring-bp-separator{padding-bottom:9px;color:#67738a;font-weight:800}.monitoring-measurement-unit{padding-bottom:9px;color:#667189;font-size:.76rem;font-weight:750}.monitoring-measurement-entry button,.monitoring-reopen{min-height:40px;padding:6px 10px;border:1px solid #dfe2eb;border-radius:9px;background:#fff;color:#4d5684;font:inherit;font-size:.73rem;font-weight:750;cursor:pointer}.monitoring-reopen{margin-left:28px;margin-top:3px}.monitoring-measurement-entry button:hover,.monitoring-reopen:hover{background:#f6f6fc}.monitoring-measurement-definition{padding:0 4px}
+.monitoring-measurement label{display:grid;gap:3px;min-width:0;color:#778094;font-size:.68rem;font-weight:700}
+.monitoring-measurement input{width:100%;min-width:55px;min-height:36px;padding:6px 8px;border:1px solid #dfe2eb;border-radius:8px;background:#fff;color:#25354b;font:inherit;font-size:.78rem}
+.monitoring-measurement label:first-child{flex:1}
+.monitoring-measurement label:nth-child(2){width:74px}
+.monitoring-measurement button,.monitoring-form-actions button,.monitoring-time-input button{min-height:40px;padding:6px 10px;border:1px solid #dfe2eb;border-radius:9px;background:#fff;color:#4d5684;font:inherit;font-size:.73rem;font-weight:750;cursor:pointer}
+.monitoring-measurement button:hover,.monitoring-form-actions button:hover,.monitoring-time-input button:hover{background:#f6f6fc}
+.monitoring-history{margin-top:8px;border-top:1px solid #f0eff6}
+.monitoring-history summary,.monitoring-all-routines>summary{display:flex;align-items:center;gap:6px;min-height:44px;color:#5f6687;font-size:.78rem;font-weight:750;cursor:pointer;list-style:none}
+.monitoring-history summary::-webkit-details-marker,.monitoring-all-routines>summary::-webkit-details-marker{display:none}
+.monitoring-history summary svg,.monitoring-all-routines>summary svg{width:15px;height:15px;margin-left:auto;transition:transform .15s ease}
+.monitoring-history[open] summary svg,.monitoring-all-routines[open]>summary svg{transform:rotate(180deg)}
+.monitoring-history ul{display:grid;gap:5px;margin:0;padding:0 0 8px;list-style:none}
+.monitoring-history li{display:flex;justify-content:space-between;gap:8px;color:#69758a;font-size:.72rem}
+.monitoring-all-routines{margin-top:5px;border-top:1px solid #e9e9f1}
+.monitoring-no-today{margin:0;padding:8px 2px;color:#737d8d;font-size:.81rem}
+.monitoring-add{margin-top:10px;width:100%;border-style:dashed;background:rgba(255,255,255,.75)}
+.monitoring-add svg,.monitoring-inline-button svg{width:17px;height:17px}
+.monitoring-inline-button{display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:6px 4px;border:0;background:transparent;color:#535b8e;font:inherit;font-size:.76rem;font-weight:750;cursor:pointer}
+.monitoring-routine-form{display:grid;gap:10px;margin-top:12px;padding:13px;border:1px solid #dedff0;border-radius:14px;background:#fff}
+.monitoring-routine-form>label,.monitoring-date-fields>label{display:grid;gap:4px;color:#5b667d;font-size:.74rem;font-weight:750}
+.monitoring-routine-form input:not([type=checkbox]),.monitoring-routine-form select,.monitoring-routine-form textarea{width:100%;min-height:42px;padding:8px 10px;border:1px solid #dfe2eb;border-radius:9px;background:#fff;color:#25354b;font:inherit;font-size:.82rem}
+.monitoring-routine-form textarea{resize:vertical}
+.monitoring-routine-form input:focus-visible,.monitoring-routine-form select:focus-visible,.monitoring-routine-form textarea:focus-visible,.monitoring-measurement input:focus-visible{outline:2px solid #777db2;outline-offset:1px}
+.monitoring-days,.monitoring-times{display:flex;flex-wrap:wrap;gap:5px 8px;margin:0;padding:8px;border:1px solid #e8e9f0;border-radius:10px}
+.monitoring-days legend,.monitoring-times legend{padding:0 4px;color:#667189;font-size:.72rem;font-weight:750}
+.monitoring-times legend span{font-weight:500}
+.monitoring-days label{display:inline-flex;align-items:center;gap:4px;min-height:40px;padding:2px 5px;color:#4d5a70;font-size:.75rem}
+.monitoring-days input{width:16px;height:16px;accent-color:#5c64a3}
+.monitoring-time-input{display:flex;align-items:center;gap:8px;width:100%}
+.monitoring-time-input input{flex:1}
+.monitoring-date-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.monitoring-form-actions{display:flex;gap:8px}
+.monitoring-form-actions button:first-child{border-color:#555d96;background:#555d96;color:#fff}
+.monitoring-error{margin:0;color:#a63737;font-size:.77rem}
+.monitoring-routine a,.monitoring-routine button,.monitoring-empty button,.monitoring-add,.monitoring-routine-form *{text-decoration:none}
+@media(max-width:440px){.monitoring-routine{padding:10px}.monitoring-routine-heading{gap:4px}.monitoring-routine-actions{gap:0}.monitoring-routine-actions button{flex-direction:column;min-width:44px;font-size:.66rem}.monitoring-measurement{flex-wrap:wrap}.monitoring-measurement button{margin-left:auto}.monitoring-date-fields{grid-template-columns:1fr}}

@@ -16,13 +16,14 @@ describe('real medication frontend contract', () => {
 
   it('uses AuthContext patient id in every medication caller', () => {
     expect(page).toContain('presentationRepository.listMedications(patient.id)')
-    expect(dashboard).toContain('presentationRepository.listMedications(auth.patient.id)')
+    expect(dashboard).toContain('const patientId = auth.patient?.id')
+    expect(dashboard).toContain('loadDashboardPage(patientId)')
     expect(search).toContain('presentationRepository.listMedications(patient.id)')
     expect(`${page}${dashboard}${search}`).not.toContain('listMedications()')
   })
 
   it('keeps dashboard medication errors isolated', () => {
-    expect(dashboard).toContain("setMedicationStatus('error')")
-    expect(dashboard).toContain('Unable to load medications.')
+    expect(dashboard).toContain("section={state('medications')}")
+    expect(dashboard).toContain('No dose event recorded')
   })
 })

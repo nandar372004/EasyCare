@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { executeGuardianGateway } from './guardian-gateway.ts'
 import { GUARDIAN_MAX_INPUT_LENGTH } from './guardian-contract.ts'
+import { GuardianProviderError } from './guardian-provider.ts'
 
 const validModelResponse = {
   riskLevel: 'routine',
@@ -34,9 +35,67 @@ describe('ai-health-guardian gateway', () => {
   it('returns a valid structured model response and version metadata', async () => {
     const deps = dependencies()
     const result = await executeGuardianGateway(payload(), request, deps)
-    expect(result).toMatchObject({ status: 200, body: { data: validModelResponse, metadata: { policyVersion: 'synthetic-policy-v1', modelVersion: 'synthetic-model-v1', sourceMode: 'model', gatewayCode: 'OK' } } })
+    expect(result).toMatchObject({ status: 200, body: { data: validModelResponse, metadata: { policyVersion: 'synthetic-policy-v1', modelVersion: 'synthetic-model-v1', sourceMode: 'model', gatewayCode: 'OK', providerUsed: 'gemini' } } })
     expect(deps.model.generate).toHaveBeenCalledOnce()
     expect(deps.model.generate.mock.calls[0][0].systemPrompt).toContain('Never diagnose')
+  })
+
+  const upstreamFailure = (status) => new GuardianProviderError('PROVIDER_FAILURE', {
+    providerHost: 'api.test.invalid', modelName: 'synthetic-model', httpStatus: status,
+    providerErrorCode: 'temporary', providerErrorMessage: 'Provider reports temporary unavailability.',
+    responseBodyValidJson: true, networkErrorType: null, timeout: false,
+  })
+
+  it('returns Gemini response without retry when primary succeeds', async () => {
+    const primary = { generate: vi.fn().mockResolvedValue(validModelResponse), diagnostics: () => ({ providerHost: 'gemini.test.invalid', modelName: 'gemini-test', httpStatus: 200, providerErrorCode: null, providerErrorMessage: null, responseBodyValidJson: true, networkErrorType: null, timeout: false }) }
+    const deps = dependencies({ model: primary, fallbackModel: { generate: vi.fn() }, fallbackModelName: 'groq-test' })
+    const result = await executeGuardianGateway(payload(), request, deps)
+    expect(result.body.metadata).toMatchObject({ sourceMode: 'model', providerUsed: 'gemini', modelVersion: 'synthetic-model-v1' })
+    expect(primary.generate).toHaveBeenCalledOnce()
+    expect(deps.fallbackModel.generate).not.toHaveBeenCalled()
+  })
+
+  it('retries Gemini once after a transient 503 and returns Gemini response', async () => {
+    const primary = { generate: vi.fn().mockRejectedValueOnce(upstreamFailure(503)).mockResolvedValueOnce(validModelResponse) }
+    const deps = dependencies({ model: primary, fallbackModel: { generate: vi.fn() }, fallbackModelName: 'groq-test', retryDelayMs: 0 })
+    const result = await executeGuardianGateway(payload(), request, deps)
+    expect(primary.generate).toHaveBeenCalledTimes(2)
+    expect(deps.fallbackModel.generate).not.toHaveBeenCalled()
+    expect(result.body.metadata).toMatchObject({ sourceMode: 'model', providerUsed: 'gemini' })
+  })
+
+  it('uses Groq after Gemini returns two transient 503 failures', async () => {
+    const primary = { generate: vi.fn().mockRejectedValue(upstreamFailure(503)) }
+    const groq = { generate: vi.fn().mockResolvedValue(validModelResponse) }
+    const deps = dependencies({ model: primary, fallbackModel: groq, fallbackModelName: 'groq-test', retryDelayMs: 0 })
+    const result = await executeGuardianGateway(payload(), request, deps)
+    expect(primary.generate).toHaveBeenCalledTimes(2)
+    expect(groq.generate).toHaveBeenCalledOnce()
+    expect(groq.generate.mock.calls[0][0].systemPrompt).toContain('Never diagnose')
+    expect(result.body.metadata).toMatchObject({ sourceMode: 'model', providerUsed: 'groq', modelVersion: 'groq-test' })
+  })
+
+  it('uses deterministic fallback when Gemini and Groq both fail', async () => {
+    const deps = dependencies({
+      model: { generate: vi.fn().mockRejectedValue(upstreamFailure(503)) },
+      fallbackModel: { generate: vi.fn().mockRejectedValue(new Error('Groq unavailable')) },
+      fallbackModelName: 'groq-test', retryDelayMs: 0,
+    })
+    const result = await executeGuardianGateway(payload(), request, deps)
+    expect(result.body.data).toMatchObject({ sourceMode: 'fallback' })
+    expect(result.body.metadata.gatewayCode).toBe('PROVIDER_FAILURE')
+    expect(deps.model.generate).toHaveBeenCalledTimes(2)
+    expect(deps.fallbackModel.generate).toHaveBeenCalledOnce()
+  })
+
+  it('does not retry non-transient Gemini errors before Groq fallback', async () => {
+    const primary = { generate: vi.fn().mockRejectedValue(upstreamFailure(401)) }
+    const groq = { generate: vi.fn().mockResolvedValue(validModelResponse) }
+    const deps = dependencies({ model: primary, fallbackModel: groq, fallbackModelName: 'groq-test', retryDelayMs: 0 })
+    const result = await executeGuardianGateway(payload(), request, deps)
+    expect(primary.generate).toHaveBeenCalledOnce()
+    expect(groq.generate).toHaveBeenCalledOnce()
+    expect(result.body.metadata.providerUsed).toBe('groq')
   })
 
   it('replaces invalid JSON/provider parsing failure with fallback', async () => {

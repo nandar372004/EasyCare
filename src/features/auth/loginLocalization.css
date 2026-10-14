@@ -1,0 +1,16 @@
+.ec-login-language{display:flex;align-items:center;gap:5px;border:1px solid #cddced;border-radius:8px;padding:3px;background:#fff}
+.ec-login-language button{padding:4px 8px;min-height:32px;border:0;border-radius:5px;background:transparent;color:#075dcc;font:inherit;cursor:pointer}
+.ec-login-language button[aria-pressed="true"]{font-weight:700;background:#eef6ff}
+.ec-login-language button:focus-visible{outline:2px solid #075dcc;outline-offset:2px}
+.ec-signin-layout[lang="my"] :is(h1,h2,p,b,small,span,label,a,button),.ec-signin-card[lang="my"] :is(h2,p,b,small,span,label,a,button){letter-spacing:normal;line-height:1.8;overflow-wrap:break-word}
+.ec-signin-layout[lang="my"] .ec-signin-intro h1{font-size:clamp(2rem,3vw,3rem)}
+.ec-signin-card[lang="my"] .ec-signin-tabs button{min-width:0;padding:8px;font-size:.8rem}
+.ec-signin-card[lang="my"] .ec-signin-tabs svg{flex-shrink:0}
+.ec-signin-card[lang="my"] :is(.ec-signin-hint,.ec-remember small,.ec-signin-privacy small){font-size:.76rem}
+.ec-signin-card[lang="my"] .label-row{flex-wrap:wrap}
+.ec-signin-card[lang="my"] .ec-signin-privacy>svg{flex-shrink:0}
+.ec-signin-card[lang="my"] .auth-switch{flex-wrap:wrap}
+.ec-signin-layout[lang="my"] :is(.ec-signin-features article>div,.ec-signin-trust span){min-width:0}
+.ec-signin-layout[lang="my"] .ec-signin-trust i{flex-shrink:0}
+.ec-signin-layout[lang="my"] .ec-signin-trust{row-gap:12px}
+@media(max-width:600px){.ec-signin-tools{gap:12px}.ec-signin-layout[lang="my"] .ec-signin-tools{height:auto;min-height:44px;flex-wrap:wrap;margin-bottom:12px}.ec-signin-card[lang="my"] .ec-signin-tabs button{flex-direction:column;gap:4px}.ec-signin-layout[lang="my"] .ec-signin-features{grid-template-columns:1fr}.ec-signin-layout[lang="my"] .ec-signin-trust article{padding-inline:12px}}

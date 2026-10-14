@@ -6,17 +6,24 @@ import {
   hasUnsafeClinicalOutput,
   redactGuardianText,
 } from './guardian-contract.ts'
-import type { GuardianModelAdapter } from './guardian-provider.ts'
+import { GuardianProviderError, type GuardianModelAdapter, type GuardianProviderDiagnostics } from './guardian-provider.ts'
 
 export type GuardianIdentity = { userId: string; role: string; isActive: boolean }
 export type GuardianGatewayDependencies = {
   authenticate: (authorization: string) => Promise<GuardianIdentity | null>
   consumeRateLimits: (userId: string, clientAddress: string) => Promise<boolean>
   model: GuardianModelAdapter
+  fallbackModel?: GuardianModelAdapter
   policyVersion: string
   modelName: string
+  fallbackModelName?: string
   timeoutMs?: number
-  operationalLog?: (eventCode: string) => void
+  retryDelayMs?: number
+  operationalLog?: (
+    eventCode: string,
+    diagnostics?: GuardianProviderDiagnostics,
+    context?: { provider?: 'gemini' | 'groq'; fallbackProviderAttempted?: boolean; finalProvider?: 'gemini' | 'groq' },
+  ) => void
 }
 
 export const GUARDIAN_PROMPT_TEMPLATE_VERSION = 'guardian-system-v1'
@@ -40,7 +47,13 @@ function errorResult(status: number, code: string, message: string) {
   return { status, body: { error: { code, message } } }
 }
 
-function successResult(data: unknown, dependencies: GuardianGatewayDependencies, gatewayCode = 'OK', modelVersion?: string) {
+function successResult(
+  data: unknown,
+  dependencies: GuardianGatewayDependencies,
+  gatewayCode = 'OK',
+  modelVersion?: string,
+  providerUsed?: 'gemini' | 'groq',
+) {
   const sourceMode = (data as { sourceMode?: string })?.sourceMode ?? 'fallback'
   return {
     status: 200,
@@ -52,6 +65,7 @@ function successResult(data: unknown, dependencies: GuardianGatewayDependencies,
         modelVersion: modelVersion ?? (sourceMode === 'model' ? dependencies.modelName : 'not_called'),
         sourceMode,
         gatewayCode,
+        ...(providerUsed ? { providerUsed } : {}),
       },
     },
   }
@@ -75,6 +89,18 @@ async function withTimeout<T>(work: (signal: AbortSignal) => Promise<T>, timeout
 function minimalModelContent(input: ReturnType<typeof guardianGatewayInputSchema.parse>) {
   const conversation = input.conversation.map((item) => ({ role: item.role, content: redactGuardianText(item.content) }))
   return JSON.stringify({ language: input.language, message: redactGuardianText(input.message), conversation })
+}
+
+function isRetryableProviderFailure(error: unknown) {
+  return error instanceof GuardianProviderError && [429, 500, 502, 503, 504].includes(error.diagnostics.httpStatus ?? 0)
+}
+
+function retryDelay(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function diagnosticSnapshot(model: GuardianModelAdapter): GuardianProviderDiagnostics | undefined {
+  return model.diagnostics?.()
 }
 
 export async function executeGuardianGateway(
@@ -102,19 +128,87 @@ export async function executeGuardianGateway(
   if (deterministic) return successResult(deterministic, dependencies, deterministic.riskLevel === 'emergency' ? 'EMERGENCY_OVERRIDE' : 'DETERMINISTIC_BOUNDARY')
 
   let modelOutput: unknown
+  let providerUsed: 'gemini' | 'groq' = 'gemini'
+  let modelVersion = dependencies.modelName
+  let fallbackProviderAttempted = false
+  let lastProviderDiagnostics: GuardianProviderDiagnostics | undefined
   try {
-    modelOutput = await withTimeout(
-      (signal) => dependencies.model.generate({
+    modelOutput = await withTimeout(async (signal) => {
+      const request = (model: GuardianModelAdapter, name: string) => model.generate({
         systemPrompt: buildGuardianSystemPrompt(dependencies.policyVersion),
         userContent: minimalModelContent(parsed.data),
-        modelName: dependencies.modelName,
+        modelName: name,
         signal,
-      }),
-      dependencies.timeoutMs ?? 8000,
-    )
+      })
+      let primaryError: unknown
+      try {
+        modelOutput = await request(dependencies.model, dependencies.modelName)
+        dependencies.operationalLog?.('ai-health-guardian:provider_selected', diagnosticSnapshot(dependencies.model),
+          { provider: 'gemini', fallbackProviderAttempted: false, finalProvider: 'gemini' })
+        return modelOutput
+      } catch (error) {
+        primaryError = error
+        lastProviderDiagnostics = error instanceof GuardianProviderError ? error.diagnostics : diagnosticSnapshot(dependencies.model)
+        const retryable = isRetryableProviderFailure(error)
+        dependencies.operationalLog?.(retryable ? 'ai-health-guardian:primary_retry' : 'ai-health-guardian:primary_failure',
+          error instanceof GuardianProviderError ? error.diagnostics : diagnosticSnapshot(dependencies.model),
+          { provider: 'gemini', fallbackProviderAttempted: false })
+        if (retryable) {
+          await retryDelay(dependencies.retryDelayMs ?? 150)
+          try {
+            modelOutput = await request(dependencies.model, dependencies.modelName)
+            dependencies.operationalLog?.('ai-health-guardian:provider_selected', diagnosticSnapshot(dependencies.model),
+              { provider: 'gemini', fallbackProviderAttempted: false, finalProvider: 'gemini' })
+            return modelOutput
+          } catch (retryError) {
+            primaryError = retryError
+            lastProviderDiagnostics = retryError instanceof GuardianProviderError ? retryError.diagnostics : diagnosticSnapshot(dependencies.model)
+            dependencies.operationalLog?.('ai-health-guardian:primary_retry_failed',
+              retryError instanceof GuardianProviderError ? retryError.diagnostics : undefined,
+              { provider: 'gemini', fallbackProviderAttempted: false })
+          }
+        }
+      }
+
+      if (dependencies.fallbackModel && dependencies.fallbackModelName) {
+        fallbackProviderAttempted = true
+        dependencies.operationalLog?.('ai-health-guardian:fallback_attempt', diagnosticSnapshot(dependencies.fallbackModel),
+          { provider: 'groq', fallbackProviderAttempted: true })
+        try {
+          modelOutput = await request(dependencies.fallbackModel, dependencies.fallbackModelName)
+          providerUsed = 'groq'
+          modelVersion = dependencies.fallbackModelName
+          dependencies.operationalLog?.('ai-health-guardian:provider_selected', diagnosticSnapshot(dependencies.fallbackModel),
+            { provider: 'groq', fallbackProviderAttempted: true, finalProvider: 'groq' })
+          return modelOutput
+        } catch (fallbackError) {
+          lastProviderDiagnostics = fallbackError instanceof GuardianProviderError ? fallbackError.diagnostics : diagnosticSnapshot(dependencies.fallbackModel)
+          dependencies.operationalLog?.('ai-health-guardian:fallback_failed',
+            fallbackError instanceof GuardianProviderError ? fallbackError.diagnostics : diagnosticSnapshot(dependencies.fallbackModel),
+            { provider: 'groq', fallbackProviderAttempted: true })
+          throw fallbackError
+        }
+      }
+      throw primaryError
+    }, dependencies.timeoutMs ?? 8000)
   } catch (error) {
-    const code = error instanceof Error && error.message === 'MODEL_TIMEOUT' ? 'MODEL_TIMEOUT' : 'PROVIDER_FAILURE'
-    dependencies.operationalLog?.(`ai-health-guardian:${code.toLowerCase()}`)
+    const timedOut = error instanceof Error && error.message === 'MODEL_TIMEOUT'
+    const code = timedOut ? 'MODEL_TIMEOUT' : 'PROVIDER_FAILURE'
+    const modelInfo = (error instanceof GuardianProviderError ? error.diagnostics : undefined) ?? lastProviderDiagnostics ?? dependencies.model.diagnostics?.()
+    const diagnostics: GuardianProviderDiagnostics = error instanceof GuardianProviderError
+      ? { ...error.diagnostics, timeout: timedOut }
+      : {
+        providerHost: modelInfo?.providerHost ?? null,
+        modelName: modelInfo?.modelName ?? 'unrecognized',
+        httpStatus: null,
+        providerErrorCode: null,
+        providerErrorMessage: null,
+        responseBodyValidJson: null,
+        networkErrorType: null,
+        timeout: timedOut,
+      }
+    dependencies.operationalLog?.(`ai-health-guardian:${code.toLowerCase()}`, diagnostics,
+      { provider: fallbackProviderAttempted ? 'groq' : 'gemini', fallbackProviderAttempted })
     return successResult(createGuardianFallback('The assistant is temporarily unavailable. Use clinician or emergency options as appropriate.'), dependencies, code)
   }
 
@@ -128,6 +222,6 @@ export async function executeGuardianGateway(
     return successResult(createGuardianFallback('The assistant response crossed a safety boundary and was not shown.'), dependencies, 'UNSAFE_MODEL_OUTPUT')
   }
 
-  return successResult(validated.data, dependencies, 'OK', dependencies.modelName)
+  return successResult(validated.data, dependencies, 'OK', modelVersion, providerUsed)
 }
 

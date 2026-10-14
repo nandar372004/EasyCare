@@ -7,7 +7,8 @@ import { useAuth } from '../features/auth/AuthContext.jsx'
 const PAGES = [
   { to: '/doctors', label: 'Doctors', icon: Stethoscope, description: 'Find and consult with doctors' },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays, description: 'View and manage appointments' },
-  { to: '/care-plan', label: 'Care Plan', icon: ClipboardList, description: 'Manage your healthcare plan' },
+  { to: '/care-plan', label: 'Home Care', icon: ClipboardList, description: 'Request professional care at home' },
+  { to: '/my-care-plan', label: 'My Care Plan', icon: ClipboardList, description: 'View your clinician-created care tasks and progress' },
   { to: '/health-guardian', label: 'AI Health Guardian', icon: Bot, description: 'AI-assisted health guidance' },
   { to: '/health-records', label: 'Health Records', icon: HeartPulse, description: 'View health records' },
   { to: '/prescriptions', label: 'Prescriptions', icon: ClipboardList, description: 'View prescriptions' },

@@ -1,0 +1,33 @@
+.night-voice-backdrop{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;width:100%;height:100vh;height:100dvh;box-sizing:border-box;overflow:hidden;padding:12px;background:rgba(15,31,48,.58);backdrop-filter:blur(5px)}
+.night-voice-dialog{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:min(100%,500px);max-height:100%;min-height:0;box-sizing:border-box;overflow:visible;padding:10px 14px;border:0;border-radius:0;background:transparent;text-align:center;box-shadow:none}
+html:has(.night-voice-backdrop),body:has(.night-voice-backdrop){overflow:hidden;overscroll-behavior:none}
+.night-voice-heading{position:relative;display:flex;align-items:center;justify-content:flex-end;width:100%;min-height:42px}
+.night-voice-heading-controls{position:absolute;top:50%;right:0;display:flex;align-items:center;gap:8px;transform:translateY(-50%)}
+.night-voice-close,.night-voice-mic{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;padding:0;border:0;border-radius:50%}
+.night-voice-close{background:rgba(255,255,255,.96);color:#294e5e;box-shadow:0 4px 14px rgba(8,35,52,.18);cursor:pointer}
+.night-voice-close svg,.night-voice-mic svg{width:19px;height:19px}
+.night-voice-language{display:inline-flex;align-items:center;gap:3px;padding:4px;border:1px solid rgba(255,255,255,.7);border-radius:999px;background:rgba(248,252,253,.92);box-shadow:0 5px 18px rgba(8,35,52,.18)}
+.night-voice-language button{min-height:36px;padding:0 15px;border:0;border-radius:999px;background:transparent;color:#345361;font:inherit;font-size:.87rem;font-weight:700;cursor:pointer;transition:background-color .18s ease,color .18s ease,box-shadow .18s ease}
+.night-voice-language button[aria-pressed=true]{background:#078f90;color:#fff;box-shadow:0 3px 9px rgba(0,107,108,.22)}
+.night-voice-mascot{position:relative;top:-20px;display:grid;place-items:center;flex:0 1 auto;width:min(100%,350px);height:min(56dvh,250px);min-height:0;margin-bottom:12px;overflow:visible}
+.night-voice-mascot img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+.night-voice-mascot img.night-voice-elephant{position:relative;z-index:1;width:auto;height:100%;max-width:100%;max-height:100%;filter:drop-shadow(0 0 12px rgba(97,255,234,.38)) drop-shadow(0 0 30px rgba(91,231,237,.3)) drop-shadow(0 12px 17px rgba(5,34,57,.22));animation:night-voice-bounce 3s ease-in-out infinite;transform-origin:50% 82%}
+.night-voice-mascot img.night-voice-moon{position:absolute;z-index:2;top:-8%;right:-12%;width:clamp(64px,23%,84px);height:auto;max-width:none;max-height:none;filter:drop-shadow(0 0 8px rgba(255,235,160,.58)) drop-shadow(0 0 16px rgba(255,216,119,.34));pointer-events:none}
+.night-voice-mascot.is-listening .night-voice-elephant{animation:night-voice-listen 2.7s ease-in-out infinite;filter:drop-shadow(0 0 17px rgba(76,255,225,.58)) drop-shadow(0 0 34px rgba(34,216,225,.38))}
+.night-voice-mascot.is-speaking .night-voice-elephant{animation:night-voice-speak 2.8s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(97,255,234,.53)) drop-shadow(0 0 36px rgba(91,231,237,.42)) drop-shadow(0 12px 17px rgba(5,34,57,.22))}
+.night-voice-mic{background:rgba(239,250,250,.95);color:#087a78;box-shadow:0 4px 15px rgba(4,37,51,.2)}
+.night-voice-mic.is-active{background:#52e5ce;color:#064f53;box-shadow:0 0 0 5px rgba(82,229,206,.2),0 0 24px rgba(82,229,206,.65);animation:night-voice-mic-pulse 1.15s ease-in-out infinite alternate}
+.night-voice-actions.voice-assistant-actions{position:relative;display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:8px;width:100%;max-width:460px;margin-top:14px}
+.night-voice-dialog .button{min-height:44px}
+.night-voice-dialog>.button{margin-top:14px}
+.night-voice-actions .button{flex:1 1 calc(50% - 8px);min-width:0;min-height:48px;margin-top:0;line-height:1.2;white-space:normal}
+.night-voice-start-actions{display:flex;justify-content:center;width:100%;margin-top:14px}
+.night-voice-start-actions .button{width:min(100%,220px);margin-top:0}
+.night-voice-language button:focus-visible,.night-voice-close:focus-visible,.night-voice-dialog .button:focus-visible{outline:3px solid #baf4eb;outline-offset:3px}
+@keyframes night-voice-bounce{0%,100%{transform:translateY(0) rotate(-.3deg) scale(1)}50%{transform:translateY(-5px) rotate(.4deg) scale(1.01)}}
+@keyframes night-voice-listen{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.012)}}
+@keyframes night-voice-speak{0%,100%{transform:translateY(0) rotate(-.4deg) scale(1)}50%{transform:translateY(-4px) rotate(.5deg) scale(1.016)}}
+@keyframes night-voice-mic-pulse{from{transform:scale(.97)}to{transform:scale(1.04)}}
+@media(max-width:520px){.night-voice-backdrop{padding:8px}.night-voice-dialog{gap:8px;width:100%;padding:8px 6px}.night-voice-heading{min-height:38px}.night-voice-heading-controls{gap:6px}.night-voice-close,.night-voice-mic{flex-basis:38px;width:38px;height:38px}.night-voice-language button{min-height:34px;padding:0 12px;font-size:.82rem}.night-voice-mascot{top:-12px;width:min(100%,280px);height:min(48dvh,210px);margin-bottom:8px}.night-voice-actions.voice-assistant-actions{margin-top:12px;gap:6px}.night-voice-start-actions{margin-top:10px}.night-voice-dialog>.button{margin-top:10px}.night-voice-actions .button{min-height:42px;padding:0 9px;font-size:.82rem}}
+@media(max-height:620px){.night-voice-dialog{gap:6px;padding-block:6px}.night-voice-heading{min-height:34px}.night-voice-mascot{top:-8px;height:min(36dvh,170px);margin-bottom:4px}.night-voice-actions.voice-assistant-actions{margin-top:8px;gap:6px}.night-voice-dialog>.button{margin-top:8px}.night-voice-actions .button{min-height:40px}}
+@media(prefers-reduced-motion:reduce){.night-voice-elephant,.night-voice-mic.is-active{animation:none}.night-voice-language button{transition:none}}

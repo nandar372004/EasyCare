@@ -86,6 +86,10 @@ Deno.serve(async (request) => {
   const policyVersion = Deno.env.get("AI_GUARDIAN_POLICY_VERSION");
   const rateLimitPepper = Deno.env.get("AI_RATE_LIMIT_PEPPER");
   const providerEndpoint = Deno.env.get("AI_PROVIDER_URL");
+  const fallbackProviderKey = Deno.env.get("AI_FALLBACK_PROVIDER_API_KEY") ?? Deno.env.get("GROQ_API_KEY");
+  const fallbackModelName = Deno.env.get("AI_FALLBACK_MODEL_NAME") ?? Deno.env.get("GROQ_DOCUMENT_MODEL");
+  const fallbackProviderEndpoint = Deno.env.get("AI_FALLBACK_PROVIDER_URL") ??
+    (fallbackProviderKey ? "https://api.groq.com/openai/v1/chat/completions" : undefined);
   if (
     !supabaseUrl ||
     !anonKey ||
@@ -160,14 +164,14 @@ Deno.serve(async (request) => {
         if (authError || !authData.user) return null;
         const { data: profile, error: profileError } = await userClient
           .from("profiles")
-          .select("role, is_active")
+          .select("role, status")
           .eq("id", authData.user.id)
           .maybeSingle();
         if (profileError || !profile) return null;
         return {
           userId: authData.user.id,
           role: profile.role,
-          isActive: profile.is_active,
+          isActive: profile.status === "active",
         };
       },
       consumeRateLimits: async (userId, address) => {
@@ -200,12 +204,37 @@ Deno.serve(async (request) => {
         modelName,
         endpoint: providerEndpoint,
       }),
+      ...(fallbackProviderKey && fallbackModelName && fallbackProviderEndpoint ? {
+        fallbackModel: createOpenAICompatibleAdapter({
+          apiKey: fallbackProviderKey,
+          modelName: fallbackModelName,
+          endpoint: fallbackProviderEndpoint,
+        }),
+        fallbackModelName,
+      } : {}),
       policyVersion,
       modelName,
       timeoutMs: 25000,
-      // Only fixed operational event codes are accepted here. Raw input, full
-      // prompts, medical context, and provider payloads are never logged.
-      operationalLog: (eventCode) => console.error(eventCode),
+      // Diagnostics are constructed from an allowlisted shape by the adapter;
+      // never log request data, headers, provider payloads, or exception text.
+      operationalLog: (eventCode, diagnostics, context) => console.error(JSON.stringify({
+        event: eventCode,
+        ...(diagnostics ? {
+          providerHost: diagnostics.providerHost,
+          modelName: diagnostics.modelName,
+          httpStatus: diagnostics.httpStatus,
+          providerErrorCode: diagnostics.providerErrorCode,
+          providerErrorMessage: diagnostics.providerErrorMessage,
+          responseBodyValidJson: diagnostics.responseBodyValidJson,
+          networkErrorType: diagnostics.networkErrorType,
+          timeout: diagnostics.timeout,
+        } : {}),
+        ...(context ? {
+          provider: context.provider,
+          fallbackProviderAttempted: context.fallbackProviderAttempted,
+          finalProvider: context.finalProvider,
+        } : {}),
+      })),
     },
   );
 

@@ -132,6 +132,62 @@ describe('repository adapters', () => {
     expect(repository.reset).toThrow(/unsupported/)
   })
 
+  it('reads prescription items and existing prescriber names through the patient scoped query', async () => {
+    const rows = [{
+      id: 'prescription-1', patient_id: 'patient-1', doctor_provider_id: 'provider-1', status: 'active',
+      instructions: 'Prescription instructions', issued_at: '2026-08-01T00:00:00Z',
+      prescriber: { display_name: 'Dr. Recorded' },
+      prescription_items: [{ id: 'item-1', medication_name: 'Recorded medicine', strength: '10 mg', dose: '1 tablet', route: 'oral', frequency: 'Once daily', duration_days: 5, instructions: 'Recorded use' }],
+    }]
+    const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), then: resolve => Promise.resolve({ data: rows, error: null }).then(resolve) }
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.order.mockReturnValue(query)
+    const from = vi.fn(() => query)
+    const repository = createSupabaseRepository({ from })
+    const result = await repository.listPrescriptions('patient-1')
+    expect(from).toHaveBeenCalledWith('prescriptions')
+    expect(query.eq).toHaveBeenCalledWith('patient_id', 'patient-1')
+    expect(query.select.mock.calls[0][0]).toContain('prescription_items(')
+    expect(result).toEqual([expect.objectContaining({
+      id: 'prescription-1', itemId: 'item-1', medicine: 'Recorded medicine', strength: '10 mg',
+      dosage: '1 tablet', frequency: 'Once daily', duration: '5 days', instructions: 'Recorded use', doctor: 'Dr. Recorded',
+    })])
+  })
+
+  it('keeps medication reads within the authenticated read grant', async () => {
+    const rows = [
+      { id: 'med-1', patient_id: 'patient-1', medication_name: 'Recorded medicine', dose: '1 tablet', frequency: 'Daily', instructions: 'Recorded directions', start_date: '2026-08-01', end_date: null, status: 'active', medication_schedules: [] },
+      { id: 'med-synthetic', patient_id: 'patient-1', medication_name: 'Cetirizine', dose: '10 mg', frequency: 'Once daily', instructions: 'Synthetic record: take in the evening', start_date: '2026-08-01', end_date: null, status: 'active', medication_schedules: [] },
+      { id: 'med-demo', patient_id: 'patient-1', medication_name: 'Demo record: Paracetamol', dose: '500 mg', frequency: 'Every 8 hours', instructions: 'Sample directions', start_date: '2026-08-01', end_date: null, status: 'active', medication_schedules: [] },
+    ]
+    const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), then: resolve => Promise.resolve({ data: rows, error: null }).then(resolve) }
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.order.mockReturnValue(query)
+    const repository = createSupabaseRepository({ from: vi.fn(() => query) })
+    const result = await repository.listMedications('51000000-0000-4000-8000-000000000001')
+    const columns = query.select.mock.calls[0][0]
+    expect(columns).not.toContain('prescription_item_id')
+    expect(columns).not.toContain('prescribing_provider_id')
+    expect(columns).not.toContain('reason_for_medication')
+    expect(result[0]).toMatchObject({ name: 'Recorded medicine', dosage: '1 tablet', frequency: 'Daily', status: 'active' })
+    expect(result[0]).not.toHaveProperty('source')
+    expect(result[0]).not.toHaveProperty('relatedPrescription')
+    expect(result).toHaveLength(1)
+    expect(result.map(item => item.name)).toEqual(['Recorded medicine'])
+  })
+
+  it('reads only the patient Zoom join URL through the appointment-owned read', async () => {
+    const row = { id: 'appointment-1', patient_id: 'patient-1', provider_id: 'provider-1', appointment_type: 'teleconsultation', consultation_channel: 'video', scheduled_start: '2099-01-01T00:00:00Z', scheduled_end: '2099-01-01T00:30:00Z', status: 'confirmed', teleconsultation_sessions: { join_url_patient: 'https://zoom.us/j/123' } }
+    const query = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: row, error: null }) }
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query)
+    const repository = createSupabaseRepository({ from: vi.fn(() => query) })
+    const result = await repository.getAppointment('appointment-1', { patientId: 'patient-1' })
+    const columns = query.select.mock.calls[0][0]
+    expect(columns).toContain('teleconsultation_sessions(join_url_patient)')
+    expect(columns).not.toContain('join_url_provider')
+    expect(result).toMatchObject({ appointmentType: 'teleconsultation', consultationType: 'video', joinUrl: 'https://zoom.us/j/123' })
+    expect(query.eq).toHaveBeenCalledWith('id', 'appointment-1')
+    expect(query.eq).toHaveBeenCalledWith('patient_id', 'patient-1')
+  })
+
 })
 
 describe('presentation formatting', () => {

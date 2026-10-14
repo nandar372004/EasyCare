@@ -1,5 +1,8 @@
+import { createPatientDashboardRepository } from './patientDashboardRepository.js'
+import { visibleMedicationRecords } from '../medicationVisibility.js'
+
 const CLINICAL_PRESENTATION_TABLES = Object.freeze({
-  healthSummary: 'health_summaries', prescriptions: 'prescriptions', labResults: 'lab_results', messages: 'messages', invoices: 'invoices', nearbyFacilities: 'nearby_facilities', hospitals: 'hospitals',
+  prescriptions: 'prescriptions', labResults: 'lab_results', messages: 'messages', invoices: 'invoices', nearbyFacilities: 'nearby_facilities', hospitals: 'hospitals',
 })
 
 function requireClient(client) {
@@ -22,7 +25,7 @@ const doctorFromRow = (row) => {
   return {
     id: row.id,
     displayName: row.display_name ?? 'Verified doctor',
-    specialty: primarySpecialty?.specialties?.name ?? 'General Practitioner',
+    specialty: primarySpecialty?.specialties?.name ?? 'Provider',
     qualification: row.qualification ?? 'Qualification information unavailable',
     experienceYears: row.years_experience ?? null,
     rating: row.rating_average == null ? null : Number(row.rating_average),
@@ -46,12 +49,14 @@ const appointmentFromRow = (row) => ({
   scheduledAt: row.scheduled_start,
   scheduledEnd: row.scheduled_end,
   consultationType: row.consultation_channel ?? (row.appointment_type === 'home_visit' ? 'home_visit' : 'video'),
+  appointmentType: row.appointment_type,
+  joinUrl: (Array.isArray(row.teleconsultation_sessions) ? row.teleconsultation_sessions[0] : row.teleconsultation_sessions)?.join_url_patient ?? null,
   symptoms: row.reason_symptoms,
   feeMmk: Number(row.fee_amount ?? 0),
-  doctor: row.provider ? doctorFromRow({ ...row.provider, provider_specialties: [] }) : null,
+  doctor: row.provider ? doctorFromRow(row.provider) : null,
 })
-const APPOINTMENT_SELECT = 'id, patient_id, provider_id, provider_availability_id, appointment_type, consultation_channel, scheduled_start, scheduled_end, status, reason_symptoms, fee_amount, currency, booking_code, created_at, provider:providers!appointments_provider_id_fkey(id, provider_type, display_name, qualification, verification_status, years_experience, consultation_fee_mmk, rating_average)'
-const PATIENT_PROFILE_SELECT = 'id, auth_user_id, full_name, date_of_birth, gender, primary_phone, preferred_language, address_line, township, city, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, blood_type, care_preferences, status'
+const APPOINTMENT_SELECT = 'id, patient_id, provider_id, provider_availability_id, appointment_type, consultation_channel, scheduled_start, scheduled_end, status, reason_symptoms, fee_amount, currency, booking_code, created_at, teleconsultation_sessions(join_url_patient), provider:providers!appointments_provider_id_fkey(id, provider_type, display_name, qualification, verification_status, years_experience, consultation_fee_mmk, rating_average, provider_specialties(is_primary, specialties(name)))'
+const PATIENT_PROFILE_SELECT = 'id, auth_user_id, full_name, date_of_birth, gender, primary_phone, preferred_language, address_line, township, city, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, blood_type, status'
 const PATIENT_MEDICATION_SELECT = 'id, patient_id, medication_name, dose, frequency, instructions, start_date, end_date, status, medication_schedules(id, time_of_day, days_of_week, timezone, valid_from, valid_until)'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const eventFromRow = (row) => ({ ...row, appointmentId: row.appointment_id, eventType: row.event_type, fromStatus: row.from_status, toStatus: row.to_status, createdAt: row.created_at })
@@ -66,6 +71,7 @@ function lifecycleError(error, conflictMessage) {
 export function createSupabaseRepository(client) {
   requireClient(client)
   return {
+    ...createPatientDashboardRepository(client),
     mode: 'supabase',
     metadata: Object.freeze({ isSynthetic: false, displayTimeZone: 'Asia/Yangon', readOnlyClinicalContent: true }),
     async getPatient(id) { return unwrap(client.from('patients').select(PATIENT_PROFILE_SELECT).eq('id', id).maybeSingle()) },
@@ -94,7 +100,7 @@ export function createSupabaseRepository(client) {
     async listAppointmentEvents(appointmentId) { return (await unwrap(client.from('appointment_events').select('*').eq('appointment_id', appointmentId).order('created_at', { ascending: false }))).map(eventFromRow) },
     async createAppointment(input) {
       const appointmentType = input.consultationType === 'home_visit' ? 'home_visit' : 'teleconsultation'
-      const payload = { booking_code: input.bookingCode, patient_id: input.patientId, provider_id: input.doctorId, provider_availability_id: input.slotId, appointment_type: appointmentType, consultation_channel: input.consultationType, scheduled_start: input.startsAt, scheduled_end: input.endsAt, reason_symptoms: input.symptoms?.trim() || null, status: 'pending', fee_amount: input.feeMmk, currency: 'MMK', booked_by_profile_id: null }
+      const payload = { booking_code: input.bookingCode, patient_id: input.patientId, provider_id: input.doctorId, provider_availability_id: input.slotId, appointment_type: appointmentType, consultation_channel: input.consultationType, scheduled_start: input.startsAt, scheduled_end: input.endsAt, reason_symptoms: input.symptoms?.trim() || null, status: 'pending', booked_by_profile_id: null }
       const { data, error } = await client.from('appointments').insert(payload).select(APPOINTMENT_SELECT).single()
       if (['23505', '23P01'].includes(error?.code)) throw new BookingConflictError()
       if (error?.code === '42501') throw new Error('Please sign in again.')
@@ -111,11 +117,14 @@ export function createSupabaseRepository(client) {
       if (error) throw lifecycleError(error)
       return this.getAppointment(appointmentId)
     },
-    async getHealthSummary(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.healthSummary).select('*').eq('patient_id', patientId).maybeSingle()) },
-    async listMedications(patientId) {
+    async getHealthSummary(patientId) { return this.getLatestAIHealthSummary(patientId) },
+    async listMedications(patientId, { onRecords } = {}) {
       if (!UUID_PATTERN.test(patientId ?? '')) throw new Error('A valid patient account is required.')
       const rows = await unwrap(client.from('patient_medications').select(PATIENT_MEDICATION_SELECT).eq('patient_id', patientId).order('start_date', { ascending: false }))
-      return rows.map((row) => ({
+      // A request-scoped consumer may share the original rows with the family
+      // read projection; the Medications tab's returned contract stays intact.
+      onRecords?.(rows)
+      return visibleMedicationRecords(rows).map((row) => ({
         id: row.id, patientId: row.patient_id, name: row.medication_name,
         dosage: row.dose ?? '', frequency: row.frequency ?? '', instructions: row.instructions ?? '',
         startDate: row.start_date, endDate: row.end_date, status: row.status,
@@ -125,7 +134,23 @@ export function createSupabaseRepository(client) {
         })),
       }))
     },
-    async listPrescriptions(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.prescriptions).select('*').eq('patient_id', patientId)) },
+    async listPrescriptions(patientId) {
+      const rows = await unwrap(client.from(CLINICAL_PRESENTATION_TABLES.prescriptions)
+        .select('id, patient_id, doctor_provider_id, status, instructions, issued_at, prescription_items(id, medication_name, strength, dose, route, frequency, duration_days, instructions), prescriber:providers!prescriptions_doctor_provider_id_fkey(display_name)')
+        .eq('patient_id', patientId)
+        .order('issued_at', { ascending: false }))
+      return rows.flatMap(row => {
+        const items = row.prescription_items?.length ? row.prescription_items : [null]
+        return items.map(item => ({
+          id: row.id, itemId: item?.id ?? null, patientId: row.patient_id,
+          medicine: item?.medication_name ?? 'Medicine details not recorded',
+          strength: item?.strength ?? '', dosage: item?.dose ?? '', route: item?.route ?? '',
+          frequency: item?.frequency ?? '', duration: item?.duration_days ? `${item.duration_days} days` : '',
+          instructions: item?.instructions ?? row.instructions ?? '',
+          doctor: row.prescriber?.display_name ?? '', status: row.status, issuedAt: row.issued_at,
+        }))
+      })
+    },
     async listLabResults(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.labResults).select('*').eq('patient_id', patientId)) },
     async listMessages(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.messages).select('*').eq('patient_id', patientId)) },
     async listInvoices(patientId) { return unwrap(client.from(CLINICAL_PRESENTATION_TABLES.invoices).select('*').eq('patient_id', patientId)) },

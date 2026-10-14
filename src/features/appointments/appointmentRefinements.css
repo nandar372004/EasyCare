@@ -1,0 +1,64 @@
+.appointments-page.appointments-page .featured-identity h2,
+.appointments-page.appointments-page .featured-facts dd,
+.appointments-page.appointments-page .compact-facts dd {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: normal;
+}
+.appointments-page.appointments-page .featured-identity > div,
+.appointments-page.appointments-page .appointment-doctor,
+.appointments-page.appointments-page .appointment-main,
+.care-context-summary { min-width: 0; overflow-wrap: anywhere; }
+.appointments-page.appointments-page .appointment-card {
+  grid-template-columns: 64px minmax(190px, 1.05fr) minmax(300px, 1.55fr) minmax(230px, auto);
+  align-items: center;
+  height: auto;
+  min-height: 0;
+}
+.appointments-page.appointments-page .appointment-doctor { display: flex; align-items: center; gap: 12px; min-width: 190px; overflow-wrap: normal; }
+.appointments-page.appointments-page .appointment-main { min-width: 0; overflow-wrap: normal; }
+.appointments-page.appointments-page .appointment-main h2,
+.appointments-page.appointments-page .appointment-main span {
+  display: block;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.appointments-page.appointments-page .compact-facts { min-width: 0; grid-template-columns: repeat(4, minmax(56px, 1fr)); }
+.appointments-page.appointments-page .appointment-actions { min-width: 0; justify-content: flex-end; flex-wrap: wrap; }
+.appointments-page.appointments-page .featured-actions .button,
+.appointments-page.appointments-page .appointment-actions .button,
+.appointments-page.appointments-page .appointment-actions button { min-height: 44px; white-space: normal; overflow-wrap: anywhere; }
+.appointment-details .button { min-height: 44px; white-space: normal; }
+.consultation-link-unavailable { align-self: center; color: #657987; font-size: .78rem; line-height: 1.4; }
+.care-context-summary { padding: 16px; margin-top: 16px; }
+.appointment-reference { display: grid; gap: 3px; min-width: 0; font-size: .78rem; overflow-wrap: anywhere; }
+.discovery-page .doctor-profile-button,
+.discovery-page .doctor-book-button { min-height: 44px; white-space: normal; }
+.doctor-detail-page .profile-card h1,
+.doctor-summary h2 { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .appointments-page.appointments-page .featured-identity { flex-wrap: wrap; }
+  .appointments-page.appointments-page .featured-identity > div { flex: 1 1 140px; }
+  .appointments-page.appointments-page .appointment-actions { flex-wrap: wrap; }
+  .doctor-detail-page .profile-card .button { white-space: normal; }
+}
+@media (max-width: 1100px) {
+  .appointments-page.appointments-page .appointment-card { grid-template-columns: 60px minmax(170px, 1fr) minmax(280px, 1.4fr); }
+  .appointments-page.appointments-page .compact-facts { grid-column: 2 / -1; }
+  .appointments-page.appointments-page .appointment-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}
+@media (max-width: 700px) {
+  .appointments-page.appointments-page .appointment-card { grid-template-columns: 60px minmax(0, 1fr); }
+  .appointments-page.appointments-page .appointment-doctor { min-width: 0; }
+  .appointments-page.appointments-page .compact-facts { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .appointments-page.appointments-page .appointment-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (max-width: 420px) {
+  .appointments-page.appointments-page .compact-facts { grid-template-columns: minmax(0, 1fr); }
+  .appointments-page.appointments-page .appointment-actions { align-items: stretch; flex-direction: column; }
+  .appointments-page.appointments-page .appointment-actions > * { width: 100%; }
+}

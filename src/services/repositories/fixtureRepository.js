@@ -1,5 +1,6 @@
 import { createPresentationFixtures, PRESENTATION_DATA_NOTICE, PRESENTATION_TIME_ZONE } from '../../data/presentationFixtures.js'
 import { ACTIVE_APPOINTMENT_STATUSES, AppointmentLifecycleError, BookingConflictError, createBookingCode, isFutureEligibleAppointment, isSlotCompatible } from '../bookingService.js'
+import { visibleMedicationRecords } from '../medicationVisibility.js'
 
 const APPOINTMENTS_KEY = 'easycare.hackathon.appointments.v1'
 
@@ -102,7 +103,7 @@ export function createFixtureRepository({ persist = false } = {}) {
       return copy(appointment)
     },
     async getHealthSummary(patientId = data.patient.id) { return patientId === data.patient.id ? copy(data.healthSummary) : null },
-    async listMedications(patientId = data.patient.id) { return copy(data.medications.filter((item) => item.patientId === patientId)) },
+    async listMedications(patientId = data.patient.id) { return copy(visibleMedicationRecords(data.medications.filter((item) => item.patientId === patientId))) },
     async listPrescriptions(patientId = data.patient.id) { return copy(data.prescriptions.filter((item) => item.patientId === patientId)) },
     async listLabResults(patientId = data.patient.id) { return copy(data.labResults.filter((item) => item.patientId === patientId)) },
     async listMessages(patientId = data.patient.id) { return copy(data.messages.filter((item) => item.patientId === patientId)) },

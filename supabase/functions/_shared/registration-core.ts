@@ -1,9 +1,6 @@
 import { z } from 'npm:zod@4.0.17'
 import { deriveInternalEmail, normalizeMyanmarPhone } from './phone-identity.ts'
 
-const genderSchema = z.enum(['Male', 'Female', 'Other', 'Prefer not to say'])
-const bloodTypeSchema = z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'])
-
 export const edgeRegistrationSchema = z.object({
   password: z.string().min(8).regex(/[A-Za-z]/).regex(/\d/),
   account: z.object({
@@ -13,20 +10,6 @@ export const edgeRegistrationSchema = z.object({
   profile: z.object({
     fullName: z.string().trim().min(1).max(160),
     dateOfBirth: z.iso.date(),
-    gender: genderSchema,
-    addressCity: z.string().trim().min(1).max(300),
-  }),
-  emergencyContact: z.object({
-    name: z.string().trim().min(1).max(160),
-    relationship: z.string().trim().min(1).max(80),
-    phoneNumber: z.string().min(1),
-  }),
-  medicalProfile: z.object({
-    bloodType: bloodTypeSchema,
-    allergies: z.string().trim().max(1000),
-    noKnownAllergies: z.boolean(),
-    existingMedicalConditions: z.string().trim().max(2000),
-    currentMedications: z.string().trim().max(2000),
   }),
   consent: z.object({
     termsAccepted: z.literal(true),
@@ -36,9 +19,6 @@ export const edgeRegistrationSchema = z.object({
   const birthDate = new Date(`${data.profile.dateOfBirth}T00:00:00Z`)
   if (birthDate >= new Date()) {
     context.addIssue({ code: 'custom', path: ['profile', 'dateOfBirth'], message: 'Invalid date' })
-  }
-  if (!data.medicalProfile.noKnownAllergies && !data.medicalProfile.allergies) {
-    context.addIssue({ code: 'custom', path: ['medicalProfile', 'allergies'], message: 'Allergies required' })
   }
 })
 
@@ -59,10 +39,8 @@ export async function executeRegistration(payload: unknown, dependencies: Regist
   dependencies.logStage?.('payload_validated')
 
   let phone: string
-  let emergencyPhone: string
   try {
     phone = normalizeMyanmarPhone(parsed.data.account.phoneNumber)
-    emergencyPhone = normalizeMyanmarPhone(parsed.data.emergencyContact.phoneNumber)
   } catch {
     dependencies.logStage?.('phone_normalization_failed')
     return { status: 400, body: { error: 'Unable to register with these details.' } }
@@ -99,20 +77,6 @@ export async function executeRegistration(payload: unknown, dependencies: Regist
       fullName: parsed.data.profile.fullName,
       preferredLanguage: 'en',
       dateOfBirth: parsed.data.profile.dateOfBirth,
-      gender: parsed.data.profile.gender,
-      addressCity: parsed.data.profile.addressCity,
-      emergencyContact: {
-        name: parsed.data.emergencyContact.name,
-        relationship: parsed.data.emergencyContact.relationship,
-        phone_number: emergencyPhone,
-      },
-      medicalProfile: {
-        blood_type: parsed.data.medicalProfile.bloodType,
-        allergies: parsed.data.medicalProfile.allergies,
-        no_known_allergies: parsed.data.medicalProfile.noKnownAllergies,
-        existing_medical_conditions: parsed.data.medicalProfile.existingMedicalConditions,
-        current_medications: parsed.data.medicalProfile.currentMedications,
-      },
       termsAccepted: true,
       privacyConsent: true,
     })

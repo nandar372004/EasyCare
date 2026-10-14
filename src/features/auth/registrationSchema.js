@@ -45,23 +45,10 @@ export const registrationFormSchema = z.object({
   confirmPassword: z.string().min(1, 'Please confirm your password'),
   fullName: requiredText('Full name is required', 160, 'Full name must be 160 characters or fewer'),
   dateOfBirth: z.string().min(1, 'Date of birth is required').refine(isValidPastDate, 'Enter a valid past date'),
-  gender: z.enum(genderOptions, { message: 'Gender is required' }),
-  addressCity: requiredText('Address or city is required', 300, 'Address or city must be 300 characters or fewer'),
-  emergencyName: requiredText('Emergency contact name is required', 160, 'Emergency contact name must be 160 characters or fewer'),
-  emergencyRelationship: requiredText('Relationship is required', 80, 'Relationship must be 80 characters or fewer'),
-  emergencyPhoneNumber: phone,
-  bloodType: z.enum(bloodTypeOptions, { message: 'Blood type is required' }),
-  allergies: z.string().trim().max(1000, 'Allergies must be 1000 characters or fewer'),
-  noKnownAllergies: z.boolean(),
-  existingMedicalConditions: z.string().trim().max(2000, 'Medical conditions must be 2000 characters or fewer'),
-  currentMedications: z.string().trim().max(2000, 'Current medications must be 2000 characters or fewer'),
-  termsAccepted: z.boolean().refine(Boolean, 'You must accept the Terms and Conditions'),
-  privacyConsent: z.boolean().refine(Boolean, 'You must accept the Privacy Policy and information handling'),
+  termsAccepted: z.boolean().refine(Boolean, 'You must agree to the Terms of Service'),
+  privacyConsent: z.boolean().refine(Boolean, 'You must acknowledge the Privacy Policy'),
 }).superRefine((data, context) => {
   if (data.password !== data.confirmPassword) {
     context.addIssue({ code: 'custom', path: ['confirmPassword'], message: 'Passwords must match' })
-  }
-  if (!data.noKnownAllergies && !data.allergies) {
-    context.addIssue({ code: 'custom', path: ['allergies'], message: 'List allergies or select “No known allergies”' })
   }
 })

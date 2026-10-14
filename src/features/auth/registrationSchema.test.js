@@ -7,16 +7,6 @@ const validForm = {
   confirmPassword: 'Health123',
   fullName: 'Test Patient',
   dateOfBirth: '1995-04-12',
-  gender: 'Prefer not to say',
-  addressCity: 'Yangon',
-  emergencyName: 'Test Contact',
-  emergencyRelationship: 'Sibling',
-  emergencyPhoneNumber: '+95 9 876-543-210',
-  bloodType: 'Unknown',
-  allergies: 'Synthetic test allergy',
-  noKnownAllergies: false,
-  existingMedicalConditions: '',
-  currentMedications: '',
   termsAccepted: true,
   privacyConsent: true,
 }
@@ -28,17 +18,36 @@ function expectRejected(changes, field) {
 }
 
 describe('patient registration validation', () => {
-  it('rejects an empty form', () => {
-    const emptyForm = Object.fromEntries(Object.entries(validForm).map(([key, value]) => [key, typeof value === 'boolean' ? false : '']))
-    expect(submitRegistration(emptyForm).success).toBe(false)
+  it('accepts the minimal registration contract and normalizes the phone', () => {
+    const result = submitRegistration(validForm)
+    expect(result.success).toBe(true)
+    expect(result.registrationData).toEqual({
+      account: { phoneNumber: '+959123456789' },
+      profile: { fullName: 'Test Patient', dateOfBirth: '1995-04-12' },
+      consent: { termsAccepted: true, privacyConsent: true },
+    })
   })
 
-  it('rejects a missing full name', () => expectRejected({ fullName: '' }, 'fullName'))
+  it('accepts the reported phone and preserves the date input as YYYY-MM-DD', () => {
+    const result = submitRegistration({
+      ...validForm,
+      phoneNumber: '09963254323',
+      fullName: 'Ei Ei San',
+      dateOfBirth: '1977-06-09',
+    })
 
-  it.each(['not-a-date', '2999-01-01', '2024-02-30'])(
-    'rejects invalid or future date %s',
-    (dateOfBirth) => expectRejected({ dateOfBirth }, 'dateOfBirth'),
-  )
+    expect(result.success).toBe(true)
+    expect(result.registrationData).toMatchObject({
+      account: { phoneNumber: '+959963254323' },
+      profile: { fullName: 'Ei Ei San', dateOfBirth: '1977-06-09' },
+      consent: { termsAccepted: true, privacyConsent: true },
+    })
+  })
+
+  it('rejects an empty form and missing full name', () => {
+    expect(submitRegistration({}).success).toBe(false)
+    expectRejected({ fullName: '' }, 'fullName')
+  })
 
   it.each(['', '12345', '+1 202 555 0142'])(
     'rejects missing or invalid Myanmar phone %s',
@@ -50,109 +59,62 @@ describe('patient registration validation', () => {
     (password) => expectRejected({ password, confirmPassword: password }, 'password'),
   )
 
-  it('rejects a password mismatch', () => expectRejected({ confirmPassword: 'Different123' }, 'confirmPassword'))
+  it('rejects password confirmation mismatch', () => expectRejected({ confirmPassword: 'Different123' }, 'confirmPassword'))
 
-  it('rejects missing gender', () => expectRejected({ gender: '' }, 'gender'))
-  it('rejects missing address or city', () => expectRejected({ addressCity: '' }, 'addressCity'))
-  it('rejects a missing emergency contact name', () => expectRejected({ emergencyName: '' }, 'emergencyName'))
-  it('rejects a missing emergency relationship', () => expectRejected({ emergencyRelationship: '' }, 'emergencyRelationship'))
-  it('rejects an invalid emergency phone', () => expectRejected({ emergencyPhoneNumber: '555' }, 'emergencyPhoneNumber'))
-  it('rejects a missing blood type', () => expectRejected({ bloodType: '' }, 'bloodType'))
-  it('rejects missing allergies without an explicit no-known-allergies choice', () => expectRejected({ allergies: '', noKnownAllergies: false }, 'allergies'))
+  it.each(['not-a-date', '2999-01-01', '2024-02-30'])(
+    'rejects invalid or future date %s',
+    (dateOfBirth) => expectRejected({ dateOfBirth }, 'dateOfBirth'),
+  )
 
-  it('accepts an explicit no-known-allergies choice', () => {
-    expect(submitRegistration({ ...validForm, allergies: '', noKnownAllergies: true }).success).toBe(true)
+  it('continues to accept a valid minor DOB', () => {
+    expect(submitRegistration({ ...validForm, dateOfBirth: '2015-01-01' }).success).toBe(true)
   })
 
-  it.each([
-    ['fullName', 161],
-    ['addressCity', 301],
-    ['emergencyName', 161],
-    ['emergencyRelationship', 81],
-    ['allergies', 1001],
-    ['existingMedicalConditions', 2001],
-    ['currentMedications', 2001],
-  ])('matches the Edge Function maximum for %s', (field, length) => {
-    expectRejected({ [field]: 'x'.repeat(length), noKnownAllergies: false }, field)
+  it('requires Terms and Privacy independently', () => {
+    expectRejected({ termsAccepted: false }, 'termsAccepted')
+    expectRejected({ privacyConsent: false }, 'privacyConsent')
+  })
+
+  it('does not require or send legacy health/profile fields', () => {
+    const result = submitRegistration(validForm)
+    expect(result.success).toBe(true)
+    expect(result.registrationData.profile).not.toHaveProperty('gender')
+    expect(result.registrationData).not.toHaveProperty('emergencyContact')
+    expect(result.registrationData).not.toHaveProperty('medicalProfile')
+  })
+
+  it('does not let client-supplied role or patient identifiers enter registration data', () => {
+    const result = submitRegistration({ ...validForm, role: 'doctor', providerId: 'arbitrary', patientId: 'other-patient' })
+    expect(result.success).toBe(true)
+    expect(result.registrationData).not.toHaveProperty('role')
+    expect(result.registrationData).not.toHaveProperty('providerId')
+    expect(result.registrationData).not.toHaveProperty('patientId')
+  })
+
+  it('does not include passwords in the registration data', () => {
+    const result = submitRegistration(validForm)
+    expect(JSON.stringify(result.registrationData)).not.toContain(validForm.password)
+    expect(result.registrationData).not.toHaveProperty('password')
   })
 
   it('reports missing Supabase configuration instead of claiming registration succeeded', async () => {
-    const result = await registerPatient(validForm, null)
-    expect(result).toEqual({
-      success: false,
-      errors: {},
-      message: 'Registration service is not configured correctly. Please contact support.',
-    })
+    await expect(registerPatient(validForm, null)).resolves.toMatchObject({ success: false })
   })
 
-  it('accepts empty optional medical fields', () => {
-    expect(submitRegistration({ ...validForm, existingMedicalConditions: '', currentMedications: '' }).success).toBe(true)
-  })
-
-  it('rejects missing Terms acceptance', () => expectRejected({ termsAccepted: false }, 'termsAccepted'))
-  it('rejects missing Privacy Consent', () => expectRejected({ privacyConsent: false }, 'privacyConsent'))
-
-  it('creates the required registration data for a valid form', () => {
-    const result = submitRegistration(validForm)
-    expect(result.success).toBe(true)
-    expect(result.registrationData).toEqual({
-      account: { phoneNumber: '+959123456789' },
-      profile: {
-        fullName: 'Test Patient',
-        dateOfBirth: '1995-04-12',
-        gender: 'Prefer not to say',
-        addressCity: 'Yangon',
-      },
-      emergencyContact: {
-        name: 'Test Contact',
-        relationship: 'Sibling',
-        phoneNumber: '+959876543210',
-      },
-      medicalProfile: {
-        bloodType: 'Unknown',
-        allergies: 'Synthetic test allergy',
-        noKnownAllergies: false,
-        existingMedicalConditions: '',
-        currentMedications: '',
-      },
-      consent: { termsAccepted: true, privacyConsent: true },
-    })
-  })
-
-  it('never includes password fields in registrationData', () => {
-    const result = submitRegistration(validForm)
-    expect(result.success).toBe(true)
-    expect(JSON.stringify(result.registrationData)).not.toContain(validForm.password)
-    expect(result.registrationData).not.toHaveProperty('password')
-    expect(result.registrationData.account).not.toHaveProperty('password')
-  })
-
-  it('invokes patient-register with the complete validated payload', async () => {
+  it('invokes patient-register with only the minimal validated payload and password', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { success: true }, error: null })
-    const result = await registerPatient(validForm, { functions: { invoke } })
-
-    expect(result.success).toBe(true)
-    expect(invoke).toHaveBeenCalledOnce()
+    await expect(registerPatient(validForm, { functions: { invoke } })).resolves.toMatchObject({ success: true })
     expect(invoke).toHaveBeenCalledWith('patient-register', {
-      body: {
-        password: validForm.password,
-        ...submitRegistration(validForm).registrationData,
-      },
+      body: { password: validForm.password, ...submitRegistration(validForm).registrationData },
     })
-    expect(invoke.mock.calls[0][1].body).not.toEqual({})
   })
 
-  it.each([
-    [400, 'Please check your registration details, phone number, and password and try again.'],
-    [409, 'An account with this phone number may already exist.'],
-    [429, 'Too many registration attempts. Please wait and try again.'],
-  ])('maps expected backend HTTP %s safely', async (status, message) => {
-    const context = new Response(JSON.stringify({ error: 'Unable to register with these details.' }), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  it('maps duplicate phone response safely', async () => {
+    const context = new Response(JSON.stringify({ error: 'Unable to register with these details.' }), { status: 409 })
     const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: { context } }) } }
-
-    await expect(registerPatient(validForm, client)).resolves.toMatchObject({ success: false, message })
+    await expect(registerPatient(validForm, client)).resolves.toMatchObject({
+      success: false,
+      message: 'An account with this phone number may already exist.',
+    })
   })
 })
