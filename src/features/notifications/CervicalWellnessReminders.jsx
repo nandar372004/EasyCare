@@ -9,7 +9,7 @@ import './cervicalWellnessReminders.css'
 
 const messages = {
   WELLNESS_FIRST: { my: 'ဒီနေ့ ဘယ်လိုခံစားနေရပါသလဲ။', en: 'How are you feeling today?' },
-  MEDICATION_SECOND: { my: 'ဒီနေ့ ဆေးသောက်ဖို့ မမေ့နော်', en: "Don't forget to take your medicine today" },
+  MEDICATION_SECOND: { my: 'ဒီနေ့ ဆေးသောက်ဖို့ မမေ့နဲ့နော်။', en: "Don't forget to take your medicine today" },
   SPONDYLOSIS_THIRD: CERVICAL_REMINDERS[0],
 }
 
